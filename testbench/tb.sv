@@ -54,31 +54,6 @@ module tb;
 	);
 
 
-	credit_if up_cr_if(clk,resetn);
-	credit_if dn_cr_if [`NUM_DN_PORTS] (.clk(clk),.resetn(resetn));
-
-
-	initial begin
-		uvm_config_db#(virtual credit_if)::set(uvm_root::get(), "", "hip_cr_if", up_cr_if);
-
-	end
-
-	genvar g;
-	generate
-	    for (g = 0; g < `NUM_DN_PORTS; g++) begin : gen_dn_cr_if_set
-	        initial begin
-	            uvm_config_db#(virtual credit_if)::set(uvm_root::get(), "", $sformatf("hip_dn_cr_if_%0d", g), dn_cr_if[g]);
-	        end
-	    end
-	endgenerate
-
-
-	initial begin
-		// run_test("credit_base_test");
-	end
-
-
-
 	initial begin
 	  	clk = 1'b0;
 	  	resetn = 1'b1;
