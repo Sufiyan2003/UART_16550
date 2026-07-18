@@ -19,7 +19,8 @@ module ip_control_block (
 	output logic [7:0] data_out,
 	output logic outen,
 	output irq, irq_n,
-	output [15:0] o_DL
+	output [15:0] o_DL,
+	output [7:0] lcr_out
 );
 
 	logic [7:0] rhr_val;
@@ -85,11 +86,16 @@ module ip_control_block (
 	/*------------------------------------------------------------------------------
 	--  						   CSR registers
 	------------------------------------------------------------------------------*/	
-	// should be fifos instead of registers	
-	// this register will be loaded with the value from our fifo or uart rx directly
+	// regular registers to be loaded with the values from the external shift registers
 	register #(
 		.DEFAULT_VAL('0)
-	) RHR();
+	) RHR(
+		.clk   (clk),
+		.resetn(resetn),
+		.din   (),
+		.dout  (),
+		.wr_en ()
+	);
 
 	//W
 	register #(
@@ -213,6 +219,9 @@ module ip_control_block (
 		.dout  (psd_val)
 
 	);
+
+
+	assign lcr_out = lcr_val;
 
 
 

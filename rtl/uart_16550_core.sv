@@ -34,8 +34,9 @@ module uart_16550_core (
 );
 	
 	logic io_read, io_write;
-	logic o_DL;
-
+	logic [15:0] o_DL;
+	logic [7:0] lcr_val;
+	logic [7:0] rhr_val;
 	
 	assign io_write = iow && ~iow_n;
 	assign io_read  = ior && ~ior_n;
@@ -59,9 +60,21 @@ module uart_16550_core (
 		.outen   (outen),
 		.irq     (irq),
 		.irq_n   (irq_n),
-		.o_DL    (o_DL)
+		.o_DL    (o_DL),
+		.lcr_out (lcr_val)
 	);
 	
+
+	uart_rxtx_block uart_rxtx_blk(
+		.clk        (clk),
+		.resetn     (resetn),
+		.lcr_val    (lcr_val),
+		.txd        (),
+		.rxd        (rxd),
+		.thr_val    ('0),
+		.BR         (o_DL),
+		.rhr_val	(rhr_val)
+	);
 
 
 endmodule

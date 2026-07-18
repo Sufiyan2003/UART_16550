@@ -9,14 +9,12 @@ module uart_rx_ctrl (
 	input resetn,
 	input rxd,
 	input [15:0] BR,
-	input i_data_bits,
+	input [1:0] i_data_bits,
 	input i_parity_en,
 	input i_stop_bits,
 	output logic rx_shift_reg,
     output logic tx_shift_reg,
     output logic tx_load
-
-	
 );
 
 
@@ -25,7 +23,7 @@ module uart_rx_ctrl (
 	logic start_rx_counter		;
 	logic [3:0] data_lim		;
 	logic clear_rx_counter		;
-
+	logic rx_d					;
 
 
  
@@ -33,7 +31,18 @@ module uart_rx_ctrl (
 	uart_st rx_state, rx_state_nxt;
 
 	logic [3:0] rcvd_data_bits;
-    logic [1:0] rcvd_stop_bits;
+    logic  rcvd_stop_bits;
+
+
+    // to save the previous value of rxd
+    always_ff @(posedge clk or negedge resetn) begin
+    	if(~resetn) begin
+    		rx_d <= 0;
+    	end else begin
+    		rx_d <= rxd;
+    	end
+    end
+
 
 
 	// manage next state transition
@@ -50,7 +59,8 @@ module uart_rx_ctrl (
 		clear_rx_counter = '0;
 		case (rx_state)
 			IDLE	: begin
-				if(!rxd) rx_state_nxt = START;
+				// exit from IDLE when rxd goes from 1 -> 0
+				if(!rxd && rx_d) rx_state_nxt = START;
 				else     rx_state_nxt = IDLE;
 			end
 			START	: begin
@@ -59,26 +69,27 @@ module uart_rx_ctrl (
 						rx_state_nxt = DATA;
 						clear_rx_counter = 1'b1;
 					end
+					else begin
+						rx_state_nxt = IDLE; // go back to idle if the rxd changed during the half sample timeperiod
+					end
 				end
 				else begin
 					rx_state_nxt = START;
 				end
 			end
-			DATA 	: begin
-				if(rcvd_data_bits == (data_lim-1)) begin
-					clear_rx_counter = 1'b1;
-					if(i_parity_en) 		rx_state_nxt= PARITY;
-					else 					rx_state_nxt = STOP;
-				end
-				else begin
-					if(rx_counter != BR-1) begin
-						rx_state_nxt = DATA;
-					end
-					else begin
-						rx_state_nxt = 1'b1;
-						rx_state_nxt = DATA;
-					end
-				end
+			DATA : begin
+			    clear_rx_counter = 1'b0;
+			    rx_state_nxt = DATA;
+			    if (rx_counter == BR-1) begin
+			        clear_rx_counter = 1'b1;
+			        if (rcvd_data_bits == (data_lim-1)) begin
+			            if (i_parity_en) rx_state_nxt = PARITY;
+			            else             rx_state_nxt = STOP;
+			        end
+			        else begin
+			            rx_state_nxt = DATA;
+			        end
+			    end
 			end
 			PARITY 	: begin
 				if(rx_counter == BR-1) begin
@@ -86,13 +97,18 @@ module uart_rx_ctrl (
 					if(rcvd_stop_bits == i_stop_bits) 	rx_state_nxt = STOP;
 					else 								rx_state_nxt = PARITY;
 				end
+				else begin
+					clear_rx_counter = 1'b0;
+				end
 			end
 			STOP 	: begin
 				if(rx_counter == BR-1) begin
 					clear_rx_counter = 1'b1;
-					if(rcvd_stop_bits == i_stop_bits) 	rx_state_nxt = IDLE;
-					else 								rx_state_nxt = STOP;
+					if((rcvd_stop_bits == i_stop_bits) && (rxd == 1'b1)) 	rx_state_nxt = IDLE;
+					else 													rx_state_nxt = STOP;
 				end
+				else 
+					clear_rx_counter = 1'b0;
 			end
 		endcase
 	end
@@ -110,6 +126,29 @@ module uart_rx_ctrl (
 	end
 
 
+
+	/*------------------------------------------------------------------------------
+	--  Incrementing number of data bits received
+	------------------------------------------------------------------------------*/
+    always @(posedge clk or negedge resetn) begin
+        if (!resetn) begin
+          rcvd_data_bits <= 0;
+          rcvd_stop_bits <= 0;
+        end
+        else begin
+          if (rx_state != DATA && rx_state_nxt == DATA)
+            rcvd_data_bits <= 0;
+          else if (rx_state == DATA && rx_counter == BR-1)
+            rcvd_data_bits <= rcvd_data_bits + 1'b1;
+      
+          if (rx_state != STOP && rx_state_nxt == STOP)
+            rcvd_stop_bits <= 0;
+          else if (rx_state==STOP && rx_counter == BR-1)
+            rcvd_stop_bits <= rcvd_stop_bits + 1'b1;    
+        end
+      end
+
+
 	/*------------------------------------------------------------------------------
 	--  						Counter management
 	------------------------------------------------------------------------------*/
@@ -124,5 +163,14 @@ module uart_rx_ctrl (
 	end
 
 
+	/*------------------------------------------------------------------------------
+	--  							Shifting logic
+	------------------------------------------------------------------------------*/
+	always_comb begin
+	    rx_shift_reg = 1'b0;
+	    if (rx_state == DATA && rx_counter == BR-1) begin
+	        rx_shift_reg = 1'b1;
+	    end
+	end
 
 endmodule

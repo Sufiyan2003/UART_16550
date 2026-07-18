@@ -39,6 +39,14 @@ module tb;
 	logic txd 						;
 
 
+	int i_baud_rate; // baudrate
+	logic [2:0]  i_data_bits;
+	logic i_parity_en;
+	logic i_stop_bits; // 1 stop bits 
+
+
+
+
 
 
 	// address map
@@ -62,11 +70,10 @@ module tb;
 	  	resetn = 1'b0;
 	  	#3ns;
 	  	resetn = 1'b1;
-	  	#20000ns;
-	  	$finish;
+
 	end
 
-	always #5 clk = ~clk;
+	always #0.5ns clk = ~clk;
 	bit [7:0] reg_data;
 
 	// block to test out the registers 
@@ -76,6 +83,12 @@ module tb;
 		read_from_reg(LCR_REGISTER);
 		read_from_reg(DLM_REGISTER);
 		read_from_reg(DLL_REGISTER);
+		set_uart_frame(2'b11, 1'b1, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0);
+		#100ns;
+		send_uart_byte(8'hA5);
+		#20000ns;
+	  	$finish;
+
 	end
 
 	task read_from_reg(input logic [2:0] address);
@@ -122,6 +135,7 @@ module tb;
 
 		dl_real = real'(FCLK) / (16.0 * (real'(psd_val) + 1) * real'(baud_rate));
 		dl_int = $rtoi(dl_real);
+		i_baud_rate = dl_int;
 		$display("dl_real is: %0f",dl_real);
 		$display("dl_int is: %0d",dl_int);
 		if(dl_int <= 0 || dl_int > 65535)begin
@@ -146,6 +160,52 @@ module tb;
 		// write this register to avoid writing to DLM and DLL and PSD register
 		write_to_reg(8'h00, LCR_REGISTER);
   	endtask : set_baud_rate
+
+
+  	task set_uart_frame(bit [1:0] word_len, bit stop_bit, bit parity_en, bit even_par, bit force_parity, bit set_break, bit DLAB);
+  		bit [7:0] lcr_val;
+  		lcr_val = {DLAB, set_break,force_parity,even_par,parity_en,stop_bit,word_len};
+  		write_to_reg(lcr_val,LCR_REGISTER);
+  		
+  	endtask : set_uart_frame
+
+
+  	/*------------------------------------------------------------------------------
+  	--  tasks to transmit data to the uart ip
+  	------------------------------------------------------------------------------*/
+  	task send_uart_byte(input [7:0] data);
+	    integer i;
+	    
+	    // START bit, start with a 1, start bit is indicated by a 0
+	    rxd = 1'b1;
+	   	repeat (i_baud_rate) @(posedge clk);
+
+	   	// send the start bit
+	   	rxd = 1'b0;
+	   	repeat (i_baud_rate) @(posedge clk);
+
+	    // DATA bits (LSB first)
+	   	for (i = 0; i < 8; i++) begin
+	    	rxd = data[i];
+	        repeat (i_baud_rate) @(posedge clk);
+	    end
+
+	    // STOP bit
+	    rxd = 1'b1;
+	   	repeat (i_baud_rate) @(posedge clk);
+    
+  	endtask
+
+
+
+  	initial begin
+  		i_data_bits = 2'b01;
+  		i_parity_en = 1'b0;
+  		i_stop_bits = 1'b0;
+  		#100ns;
+
+  	end
+
 
   	// driving the differential signals	
   	assign ior_n 	= ~ior;
