@@ -9,7 +9,6 @@ module tb;
 	parameter FCLK=100_000_000;
 
 	import uvm_pkg::*;
-	import test_pkg::*;
 	`include "uvm_macros.svh"
 
 
