@@ -14,6 +14,7 @@ module uart_rx_ctrl (
 	input i_stop_bits,
 	input i_even_parity,
 	output logic rx_shift_reg,
+	output logic load_rx_reg,
   output logic tx_shift_reg,
   output logic tx_load
 );
@@ -207,6 +208,23 @@ module uart_rx_ctrl (
 					end
 				end
 			end
+	end
+
+	/*------------------------------------------------------------------------------
+	--  					Logic to load rx register in case of no error
+	------------------------------------------------------------------------------*/
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			load_rx_reg <= 0;
+		end else begin
+			// if the packet is finished and there are no errors
+			// TODO: need to check if less stop bits are sent
+			if(rx_state == STOP && rx_state_nxt == IDLE) begin
+				if(parity_err == 1'b0) load_rx_reg <= 1'b1;
+				else load_rx_reg <= 1'b0;
+			end
+			else load_rx_reg <= 1'b0;
+		end
 	end
 
 

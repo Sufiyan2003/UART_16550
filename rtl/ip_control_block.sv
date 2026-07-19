@@ -16,6 +16,8 @@ module ip_control_block (
 	input cs1,cs2,cs_n,
 	input ior,
 	input iow,
+	input load_rhr,
+	input [7:0] RHR_IN,
 	output logic [7:0] data_out,
 	output logic outen,
 	output irq, irq_n,
@@ -87,14 +89,15 @@ module ip_control_block (
 	--  						   CSR registers
 	------------------------------------------------------------------------------*/	
 	// regular registers to be loaded with the values from the external shift registers
+	
 	register #(
 		.DEFAULT_VAL('0)
 	) RHR(
 		.clk   (clk),
 		.resetn(resetn),
-		.din   (),
-		.dout  (),
-		.wr_en ()
+		.din   (RHR_IN),
+		.dout  (rhr_val),
+		.wr_en (load_rhr)
 	);
 
 	//W

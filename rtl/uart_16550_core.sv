@@ -37,6 +37,7 @@ module uart_16550_core (
 	logic [15:0] o_DL;
 	logic [7:0] lcr_val;
 	logic [7:0] rhr_val;
+	logic load_rhr;
 	
 	assign io_write = iow && ~iow_n;
 	assign io_read  = ior && ~ior_n;
@@ -46,6 +47,8 @@ module uart_16550_core (
 	--  					UART control block
 	------------------------------------------------------------------------------*/
 
+	// TODO: rhr value can also come from a rx fifo if it is enabled
+	// need to add define with seperate routing in that case
 	ip_control_block uart_ctrl(
 		.clk     (clk),
 		.resetn  (resetn),
@@ -61,7 +64,9 @@ module uart_16550_core (
 		.irq     (irq),
 		.irq_n   (irq_n),
 		.o_DL    (o_DL),
-		.lcr_out (lcr_val)
+		.lcr_out (lcr_val),
+		.load_rhr(load_rhr),
+		.RHR_IN  (rhr_val)
 	);
 	
 
@@ -73,7 +78,8 @@ module uart_16550_core (
 		.rxd        (rxd),
 		.thr_val    ('0),
 		.BR         (o_DL),
-		.rhr_val	(rhr_val)
+		.rhr_val	(rhr_val),
+		.load_rx_reg(load_rhr)
 	);
 
 

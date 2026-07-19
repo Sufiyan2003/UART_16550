@@ -13,7 +13,8 @@ module uart_rxtx_block (
 	input [7:0] thr_val,
 	input [7:0] lcr_val,
 	input [15:0] BR,
-	output [7:0] rhr_val
+	output [7:0] rhr_val,
+	output load_rx_reg
 );
 
 	logic rx_shift_reg;
@@ -59,6 +60,7 @@ module uart_rxtx_block (
 		.i_stop_bits (lcr_val[2]),
 		.i_even_parity(lcr_val[4]),
 		.BR          (BR),
+		.load_rx_reg  (load_rx_reg),
 		.rx_shift_reg(rx_shift_reg),
 		.tx_shift_reg(),
 		.tx_load     ()
