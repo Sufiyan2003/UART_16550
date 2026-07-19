@@ -17,7 +17,7 @@ module uart_rxtx_block (
 );
 
 	logic rx_shift_reg;
-
+	logic rx_parity; // to calculate parity of received data
 
 	shift_register receive_register
 	(
@@ -57,6 +57,7 @@ module uart_rxtx_block (
 		.i_data_bits (lcr_val[1:0]),
 		.i_parity_en (lcr_val[3]),
 		.i_stop_bits (lcr_val[2]),
+		.i_even_parity(lcr_val[4]),
 		.BR          (BR),
 		.rx_shift_reg(rx_shift_reg),
 		.tx_shift_reg(),

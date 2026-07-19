@@ -12,9 +12,10 @@ module uart_rx_ctrl (
 	input [1:0] i_data_bits,
 	input i_parity_en,
 	input i_stop_bits,
+	input i_even_parity,
 	output logic rx_shift_reg,
-    output logic tx_shift_reg,
-    output logic tx_load
+  output logic tx_shift_reg,
+  output logic tx_load
 );
 
 
@@ -24,6 +25,8 @@ module uart_rx_ctrl (
 	logic [3:0] data_lim		;
 	logic clear_rx_counter		;
 	logic rx_d					;
+	logic parity_err		;
+	logic rx_parity						;
 
 
  
@@ -57,6 +60,7 @@ module uart_rx_ctrl (
 	always_comb begin
 		rx_state_nxt = rx_state;
 		clear_rx_counter = '0;
+		parity_err = 1'b0;
 		case (rx_state)
 			IDLE	: begin
 				// exit from IDLE when rxd goes from 1 -> 0
@@ -94,11 +98,13 @@ module uart_rx_ctrl (
 			PARITY 	: begin
 				if(rx_counter == BR-1) begin
 					clear_rx_counter = 1'b1;
-					if(rcvd_stop_bits == i_stop_bits) 	rx_state_nxt = STOP;
-					else 								rx_state_nxt = PARITY;
+					if(rx_parity == rxd) parity_err = 1'b0;
+					else 								 parity_err = 1'b1;
+					rx_state_nxt = STOP;
 				end
 				else begin
 					clear_rx_counter = 1'b0;
+					rx_state_nxt = PARITY;
 				end
 			end
 			STOP 	: begin
@@ -172,5 +178,38 @@ module uart_rx_ctrl (
 	        rx_shift_reg = 1'b1;
 	    end
 	end
+
+	/*------------------------------------------------------------------------------
+	--  											Parity check
+	------------------------------------------------------------------------------*/
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			rx_parity <= 0;
+		end else begin
+			if((rx_counter == BR-1) && ((rx_state == DATA) && (rx_state_nxt == DATA))) begin
+				if(i_even_parity) begin
+					if(rxd == 1'b1) begin
+						if(rx_parity == 0) rx_parity <= 1'b1;
+						else rx_parity <= 1'b0;
+					end
+					else begin
+						rx_parity <= rx_parity;
+					end 
+				end
+				else begin
+					if(rxd == 1'b1) begin
+							if(rx_parity == 0) rx_parity <= 1'b1;
+							else rx_parity <= 1'b0;
+						end
+						else begin
+							rx_parity <= rx_parity;
+						end 
+					end
+				end
+			end
+	end
+
+
+
 
 endmodule

@@ -83,7 +83,7 @@ module tb;
 		read_from_reg(LCR_REGISTER);
 		read_from_reg(DLM_REGISTER);
 		read_from_reg(DLL_REGISTER);
-		set_uart_frame(2'b11, 1'b1, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0);
+		set_uart_frame(2'b11, 1'b0, 1'b1, 1'b1, 1'b0, 1'b0, 1'b0);
 		#100ns;
 		send_uart_byte(8'hA5);
 		#20000ns;
