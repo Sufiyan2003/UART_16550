@@ -26,6 +26,7 @@ module shift_register #(
 	always_ff @(posedge clk or negedge resetn) begin
 		if(~resetn) begin
 			data_out <= DEFAULT_VAL;
+			shift_out_q <= '0;
 		end else if(parallel_load) begin
 			data_out <= parallel_in;
 		end 

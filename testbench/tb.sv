@@ -54,7 +54,7 @@ module tb;
 	localparam DLL_REGISTER = 3'b000;
 	localparam DLM_REGISTER = 3'b001;
 	localparam PSD_REGISTER = 3'b101;
-
+	localparam THR_REGISTER = 3'b000;
 
 	uart_16550_core uart_core(
 		.*
@@ -86,6 +86,7 @@ module tb;
 		set_uart_frame(2'b11, 1'b0, 1'b1, 1'b1, 1'b0, 1'b0, 1'b0);
 		#100ns;
 		send_uart_byte(8'hA5);
+		send_data(8'hEA);
 		#20000ns;
 	  	$finish;
 
@@ -169,6 +170,12 @@ module tb;
   		
   	endtask : set_uart_frame
 
+  	// task to load the THR register
+  	task send_data(input [7:0] data);
+  		write_to_reg(data, THR_REGISTER);
+  	endtask
+
+
 
   	/*------------------------------------------------------------------------------
   	--  tasks to transmit data to the uart ip
@@ -196,15 +203,6 @@ module tb;
     
   	endtask
 
-
-
-  	initial begin
-  		i_data_bits = 2'b01;
-  		i_parity_en = 1'b0;
-  		i_stop_bits = 1'b0;
-  		#100ns;
-
-  	end
 
 
   	// driving the differential signals	

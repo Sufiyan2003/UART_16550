@@ -14,9 +14,7 @@ module uart_rx_ctrl (
 	input i_stop_bits,
 	input i_even_parity,
 	output logic rx_shift_reg,
-	output logic load_rx_reg,
-  output logic tx_shift_reg,
-  output logic tx_load
+	output logic load_rx_reg
 );
 
 
@@ -175,9 +173,9 @@ module uart_rx_ctrl (
 	------------------------------------------------------------------------------*/
 	always_comb begin
 	    rx_shift_reg = 1'b0;
-	    if (rx_state == DATA && rx_counter == BR-1) begin
-	        rx_shift_reg = 1'b1;
-	    end
+	    if (rx_state == DATA && rx_counter == BR-1) rx_shift_reg = 1'b1;
+	    else 																				rx_shift_reg = 1'b0;
+	    
 	end
 
 	/*------------------------------------------------------------------------------

@@ -37,6 +37,7 @@ module uart_16550_core (
 	logic [15:0] o_DL;
 	logic [7:0] lcr_val;
 	logic [7:0] rhr_val;
+	logic [7:0] thr_val;
 	logic load_rhr;
 	
 	assign io_write = iow && ~iow_n;
@@ -66,7 +67,10 @@ module uart_16550_core (
 		.o_DL    (o_DL),
 		.lcr_out (lcr_val),
 		.load_rhr(load_rhr),
-		.RHR_IN  (rhr_val)
+		.RHR_IN  (rhr_val),
+		.tx_ready (tx_ready),
+		.thr_valid(thr_valid),
+		.thr_out  (thr_val)
 	);
 	
 
@@ -76,10 +80,12 @@ module uart_16550_core (
 		.lcr_val    (lcr_val),
 		.txd        (),
 		.rxd        (rxd),
-		.thr_val    ('0),
+		.thr_val    (thr_val),
 		.BR         (o_DL),
 		.rhr_val	(rhr_val),
-		.load_rx_reg(load_rhr)
+		.load_rx_reg(load_rhr),
+		.tx_ready   (tx_ready),
+		.thr_valid  (thr_valid)
 	);
 
 

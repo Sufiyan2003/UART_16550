@@ -22,7 +22,10 @@ module ip_control_block (
 	output logic outen,
 	output irq, irq_n,
 	output [15:0] o_DL,
-	output [7:0] lcr_out
+	output [7:0] lcr_out,
+	output [7:0] thr_out,
+	output logic thr_valid,
+	input tx_ready
 );
 
 	logic [7:0] rhr_val;
@@ -107,9 +110,22 @@ module ip_control_block (
 		.clk   		(clk)						,
 		.resetn		(resetn)					,
 		.din   		(data_in)					,
-		.wr_en 		((add == '0) && iow)		,
+		.wr_en 		((add == '0) && iow && (lcr_val[7] == 0))		,
 		.dout  		(thr_val)
 	);
+
+	// drive thr_valid to tell the control block that it can be loaded
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			thr_valid <= '0;
+		end else begin
+			// TODO: once thr is loaded the valid flag should be set to 0
+			if((add == '0) && iow && (lcr_val[7] == 0)) thr_valid <= 1'b1;
+			else if(tx_ready == 1'b1) thr_valid <= 1'b0;
+			else thr_valid <= thr_valid;
+		end
+	end
+
 
 
 	register #(
@@ -225,7 +241,7 @@ module ip_control_block (
 
 
 	assign lcr_out = lcr_val;
-
+	assign thr_out = thr_val;
 
 
 endmodule
