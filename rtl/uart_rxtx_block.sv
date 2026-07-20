@@ -16,6 +16,8 @@ module uart_rxtx_block (
 	output [7:0] rhr_val,
 	output load_rx_reg,
 	output tx_ready,
+	output o_frame_err,
+	output o_parity_err,
 	input thr_valid
 );
 
@@ -29,6 +31,8 @@ module uart_rxtx_block (
 	logic parity_out; // calculated by combinational logic
 	logic thr_shift_out;
 	logic [2:0] mux_sel;
+	logic frame_err;
+	logic parity_err;
 
 	shift_register receive_register
 	(
@@ -101,6 +105,8 @@ module uart_rxtx_block (
 		.i_even_parity(lcr_val[4]),
 		.BR          (BR),
 		.load_rx_reg  (load_rx_reg),
+		.frame_err    (frame_err),
+		.parity_err   (parity_err),
 		.rx_shift_reg(rx_shift_reg)
 	);
 	
@@ -121,6 +127,8 @@ module uart_rxtx_block (
 	);
 	
 
+	assign o_frame_err 	= frame_err;
+	assign o_parity_err = parity_err;
 
 
 

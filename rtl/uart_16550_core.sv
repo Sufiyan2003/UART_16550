@@ -39,6 +39,11 @@ module uart_16550_core (
 	logic [7:0] rhr_val;
 	logic [7:0] thr_val;
 	logic load_rhr;
+	logic tx_ready;
+	logic thr_valid;
+	logic o_frame_err;
+	logic o_parity_err;
+
 	
 	assign io_write = iow && ~iow_n;
 	assign io_read  = ior && ~ior_n;
@@ -70,7 +75,32 @@ module uart_16550_core (
 		.RHR_IN  (rhr_val),
 		.tx_ready (tx_ready),
 		.thr_valid(thr_valid),
-		.thr_out  (thr_val)
+		.thr_out  (thr_val),
+		// LSR flags
+		.i_fifo_err				(),
+		.i_transmit_empty		(),
+		.i_thr_empty			(tx_ready),
+		.i_break_intr			(),
+		.i_framing_err			(o_frame_err),
+		.i_parity_err			(o_parity_err),
+		.i_overrun_err			(),
+		.i_data_ready			(),
+		// MSR flags
+		.i_CD					(),
+		.i_RI					(),
+		.i_DSR					(),
+		.i_CTS					(),
+		.i_delta_CD				(),
+		.i_trailing_edge_RI		(),
+		.i_delta_DSR			(),
+		.i_delta_CTS			(),
+		// ISR flags
+		.i_fifos_en1			(),
+		.i_fifos_en2			(),
+		.i_dma_tx_end			(),
+		.i_dma_rx_end			(),
+		.i_intrp_id				(),
+		.i_intr_stat			()
 	);
 	
 
@@ -85,8 +115,20 @@ module uart_16550_core (
 		.rhr_val	(rhr_val),
 		.load_rx_reg(load_rhr),
 		.tx_ready   (tx_ready),
-		.thr_valid  (thr_valid)
+		.thr_valid  (thr_valid),
+		.o_frame_err(o_frame_err),
+		.o_parity_err(o_parity_err)
 	);
+
+
+
+	/*------------------------------------------------------------------------------
+	--  		To flop the frame error and parity error
+	------------------------------------------------------------------------------*/
+	// TODO: parity and frame error will have 
+
+
+
 
 
 endmodule

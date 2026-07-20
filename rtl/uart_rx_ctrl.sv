@@ -14,7 +14,9 @@ module uart_rx_ctrl (
 	input i_stop_bits,
 	input i_even_parity,
 	output logic rx_shift_reg,
-	output logic load_rx_reg
+	output logic load_rx_reg,
+	output logic parity_err,
+	output logic frame_err
 );
 
 
@@ -24,7 +26,6 @@ module uart_rx_ctrl (
 	logic [3:0] data_lim		;
 	logic clear_rx_counter		;
 	logic rx_d					;
-	logic parity_err		;
 	logic rx_parity						;
 
 
@@ -117,6 +118,24 @@ module uart_rx_ctrl (
 			end
 		endcase
 	end
+
+
+	/*------------------------------------------------------------------------------
+	--  													Frame Error
+	------------------------------------------------------------------------------*/
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			frame_err <= 0;
+		end else begin
+			if(rx_state == STOP && rx_counter == BR-1) begin
+				if(rxd == 1'b0) frame_err <= 1'b1;
+				else 						frame_err <= 1'b0;
+			end else begin
+				frame_err <= 1'b0;
+			end
+		end
+	end
+
 
 	/*------------------------------------------------------------------------------
 	--  							Shifting logic
