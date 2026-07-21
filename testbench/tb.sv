@@ -50,6 +50,7 @@ module tb;
 
 
 	// address map
+	localparam RHR_REGISTER = 3'b000;
 	localparam LCR_REGISTER = 3'b011;
 	localparam DLL_REGISTER = 3'b000;
 	localparam DLM_REGISTER = 3'b001;
@@ -87,6 +88,10 @@ module tb;
 		#100ns;
 		send_uart_byte(8'hA5);
 		send_data(8'hEA);
+		#1000ns;
+		read_from_reg(RHR_REGISTER);
+		#5000ns;
+		send_data(8'hBB);
 		#20000ns;
 	  	$finish;
 
@@ -111,21 +116,6 @@ module tb;
   		iow = 1'b0;
   	endtask : write_to_reg
 
-  	task display_registers();
-  		$display("RHR: %0h",uart_core.uart_ctrl.RHR.dout);
-  		$display("THR: %0h",uart_core.uart_ctrl.THR.dout);
-  		$display("IER: %0h",uart_core.uart_ctrl.IER.dout);
-  		$display("ISR: %0h",uart_core.uart_ctrl.ISR.dout);
-  		$display("FCR: %0h",uart_core.uart_ctrl.FCR.dout);
-  		$display("LCR: %0h",uart_core.uart_ctrl.LCR.dout);
-  		$display("MCR: %0h",uart_core.uart_ctrl.MCR.dout);
-  		$display("LSR: %0h",uart_core.uart_ctrl.LSR.dout);
-  		$display("MSR: %0h",uart_core.uart_ctrl.MSR.dout);
-  		$display("SPR: %0h",uart_core.uart_ctrl.SPR.dout);
-  		$display("DLL: %0h",uart_core.uart_ctrl.DLL.dout);
-  		$display("DLM: %0h",uart_core.uart_ctrl.DLM.dout);
-  		$display("PSD: %0h",uart_core.uart_ctrl.PSD.dout);
-  	endtask
 
   	// for setting baud rate
   	task set_baud_rate(input int baud_rate, input bit [3:0] psd_val);

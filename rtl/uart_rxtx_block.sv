@@ -18,6 +18,8 @@ module uart_rxtx_block (
 	output tx_ready,
 	output o_frame_err,
 	output o_parity_err,
+	output thr_empty,
+	output thr_write,
 	input thr_valid
 );
 
@@ -123,6 +125,8 @@ module uart_rxtx_block (
 		.thr_valid    (thr_valid),
 		.tx_shift_reg (tx_shift_reg),
 		.tx_ready     (tx_ready),
+		.thr_empty    (thr_empty),
+		.thr_write    (thr_write),
 		.o_mux_sel	  (mux_sel)
 	);
 	

@@ -31,6 +31,7 @@ module ip_control_block (
 	input i_fifo_err,
 	input i_transmit_empty,
 	input i_thr_empty,
+	input i_thr_write,
 	input i_break_intr,
 	input i_framing_err,
 	input i_parity_err,
@@ -73,7 +74,7 @@ module ip_control_block (
 	logic [7:0] psd_val;
 	
 	// values of individual flags
-	logic fifo_dat_err,transmit_empty,thr_empty,break_intrpt,framing_err,parity_err,overrun_err,data_ready;
+	logic fifo_dat_err,transmit_empty,thr_empty_bit,break_intrpt,framing_err,parity_err,overrun_err,data_ready;
 	logic delta_CTS, delta_DSR, trailing_edge_RI,delta_CD,CTS,DSR,RI,CD;
 	
 
@@ -173,16 +174,6 @@ module ip_control_block (
 		.dout  (ier_val)
 	);
 
-	register #(
-		.DEFAULT_VAL(8'b1)
-	) ISR(
-		.clk   (clk)						,
-		.resetn(resetn)						,
-		.din   (data_in)					,
-		.wr_en ('0)							,
-		.dout  (isr_val)
-		);
-
 	logic o_fifos_en1;
 	logic o_fifos_en2;
 	logic dma_tx_end;
@@ -206,7 +197,7 @@ module ip_control_block (
 	register #(
 		.DEFAULT_VAL(0),
 		.WIDTH      (1)
-	) fifos_en1(
+	) fifos_en2_flag(
 		.clk   (clk),
 		.resetn(resetn),
 		.din   (i_fifos_en2),
@@ -222,8 +213,8 @@ module ip_control_block (
 		.clk   (clk),
 		.resetn(resetn),
 		.din   (i_dma_tx_end),
-		.wr_en ()
-		.dout  (dma_tx_end),
+		.wr_en (),
+		.dout  (dma_tx_end)
 	);
 
 	register #(
@@ -234,8 +225,8 @@ module ip_control_block (
 		.clk   (clk),
 		.resetn(resetn),
 		.din   (i_dma_rx_end),
-		.wr_en ()
 		.dout  (dma_rx_end),
+		.wr_en ()
 	);
 
 	register #(
@@ -247,7 +238,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_intrp_id),
 		.wr_en (),
-		.dout  (intrpt_id_code),
+		.dout  (intrpt_id_code)
 	);
 
 	register #(
@@ -333,8 +324,8 @@ module ip_control_block (
 		.clk   (clk),
 		.resetn(resetn),
 		.din   (i_thr_empty),
-		.dout  (thr_empty),
-		.wr_en ()
+		.dout  (thr_empty_bit),
+		.wr_en (i_thr_write) // write needs to be a pulse so that we can write this flag
 	);
 
 	register #(
@@ -387,15 +378,15 @@ module ip_control_block (
 		.DEFAULT_VAL(0),
 		.WIDTH      (1)
 	) data_ready_flag(
-		.clk   (clk),
-		.resetn(resetn),
-		.din   (i_data_ready),
-		.dout  (data_ready),
-		.wr_en ()
+		.clk   		(clk),
+		.resetn		(resetn),
+		.din   		(i_data_ready),
+		.dout  		(data_ready),
+		.wr_en 		(load_rhr || (ior && add == '0 && lcr_val[7])) // assert when rhr ready and deassert when ready 
 	);
 
 	always_comb begin
-		lsr_val = {fifo_dat_err, transmit_empty, thr_empty, break_intrpt, framing_err, parity_err, overrun_err, data_ready}; 
+		lsr_val = {fifo_dat_err, transmit_empty, thr_empty_bit, break_intrpt, framing_err, parity_err, overrun_err, data_ready}; 
 	end
 
 	register #(
