@@ -2,6 +2,8 @@
 +incdir+./rtl
 +incdir+./testbench
 
+./rtl/uart_interface.sv
+./rtl/sync_fifo.sv
 ./rtl/register.sv
 ./rtl/shift_register.sv
 ./rtl/uart_rx_ctrl.sv

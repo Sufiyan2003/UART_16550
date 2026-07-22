@@ -21,6 +21,7 @@ module uart_16550_core (
 	input ri_n						,
 	input cd_n						,
 	input rxd						,
+	uart_interface.rx uart_if 		,
 	output [7:0] data_out			,
 	output outen					,
 	output irq,irq_n				,
