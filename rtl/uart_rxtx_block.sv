@@ -41,6 +41,7 @@ module uart_rxtx_block (
 		.clk			(clk),
 		.resetn			(resetn),
 		.din			(rxd),
+		.reset_val    	(load_rx_reg),
 		.parallel_in  	('0),
 		.parallel_load	('0),
 		.wr_en			(rx_shift_reg),// this comes to enable regular shift
@@ -55,6 +56,7 @@ module uart_rxtx_block (
 		.resetn   		(resetn),
 		.din      		('0),
 		.dout     		(),
+		.reset_val    	(0),
 		.wr_en    		(tx_shift_reg), // comes from tx_controller 
 		.parallel_in  	(thr_val), // 
 		.parallel_load	(load_thr), // comes from tx controller
