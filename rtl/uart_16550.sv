@@ -22,7 +22,6 @@ module uart_16550 (
 	input ri_n						,
 	input cd_n						,
 	input rxd						,
-	uart_interface.rx uart_if 		,
 	output [7:0] data_out			,
 	output outen					,
 	output irq,irq_n				,
@@ -40,7 +39,7 @@ module uart_16550 (
 	uart_interface uart_if(clk, resetn);
 
 	// instantiate the uart_16550 core
-	uart_16650_core uart_core(
+	uart_16550_core uart_core(
 		.*
 	);
 

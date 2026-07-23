@@ -10,7 +10,7 @@ module tb;
 
 	import uvm_pkg::*;
 	`include "uvm_macros.svh"
-
+	`include "uart_params.svh"
 
 	logic clk						;
 	logic resetn					;
@@ -45,19 +45,7 @@ module tb;
 	logic i_stop_bits; // 1 stop bits 
 
 
-
-
-
-
-	// address map
-	localparam RHR_REGISTER = 3'b000;
-	localparam LCR_REGISTER = 3'b011;
-	localparam DLL_REGISTER = 3'b000;
-	localparam DLM_REGISTER = 3'b001;
-	localparam PSD_REGISTER = 3'b101;
-	localparam THR_REGISTER = 3'b000;
-
-	uart_16550_core uart_core(
+	uart_16550 uart_16550_top(
 		.*
 	);
 
@@ -84,14 +72,15 @@ module tb;
 		read_from_reg(LCR_REGISTER);
 		read_from_reg(DLM_REGISTER);
 		read_from_reg(DLL_REGISTER);
+		write_to_reg(8'h01, FCR_REGISTER); // enable fifos only 
 		set_uart_frame(2'b11, 1'b0, 1'b1, 1'b1, 1'b0, 1'b0, 1'b0);
 		#100ns;
 		send_uart_byte(8'hA5);
 		send_data(8'hEA);
 		#1000ns;
 		read_from_reg(RHR_REGISTER);
-		#5000ns;
-		send_data(8'hBB);
+		// #5000ns;
+		// send_data(8'hBB);
 		#20000ns;
 	  	$finish;
 

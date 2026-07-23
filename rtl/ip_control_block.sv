@@ -7,7 +7,7 @@
 ------------------------------------------------------------------------------*/
 
 
-
+`include "uart_params.svh"
 module ip_control_block (
 	input clk,    // Clock
 	input resetn,
@@ -24,8 +24,14 @@ module ip_control_block (
 	output [15:0] o_DL,
 	output [7:0] lcr_out,
 	output [7:0] thr_out,
+	output [7:0] isr_out,
+	output [7:0] fcr_out,
 	output logic thr_valid,
 	input tx_ready,
+
+	// input from the external fifo
+	input [10:0] rx_fifo_in,
+	input fifo_sel,
 
 	// LSR register input
 	input i_fifo_err,
@@ -36,8 +42,7 @@ module ip_control_block (
 	input i_framing_err,
 	input i_parity_err,
 	input i_overrun_err,
-	input i_data_ready,
-
+	input i_data_ready,	
 
 	// MSR
 	input i_CD,
@@ -77,7 +82,7 @@ module ip_control_block (
 	logic fifo_dat_err,transmit_empty,thr_empty_bit,break_intrpt,framing_err,parity_err,overrun_err,data_ready;
 	logic delta_CTS, delta_DSR, trailing_edge_RI,delta_CD,CTS,DSR,RI,CD;
 	
-
+	logic [7:0] rhr_out;
 	// output the baud rate from this rapper to the core to the tick generator
 	assign o_DL = {dlm_val, dll_val};
 	/*------------------------------------------------------------------------------
@@ -90,26 +95,33 @@ module ip_control_block (
 		end else begin
 			if(ior) begin
 				case (add)
-					3'b000: begin
+					RHR_REGISTER: begin
 						if(lcr_val[7]) 	data_out <= dll_val;
-						else 			data_out <= rhr_val;
+						else begin
+							data_out <= rhr_out;
+						end
 					end
-					3'b001: begin
+					IER_REGISTER: begin
 						if(lcr_val[7]) 	data_out <= dlm_val;
 						else 			data_out <= ier_val;
 					end
-					3'b010: data_out <= isr_val;
-					3'b011: data_out <= lcr_val;
-					3'b100: data_out <= mcr_val;
-					3'b101: begin
+					ISR_REGISTER: data_out <= isr_val;
+					LCR_REGISTER: data_out <= lcr_val;
+					MCR_REGISTER: data_out <= mcr_val;
+					LSR_REGISTER: begin
 						if(lcr_val[7]) 	data_out <= psd_val; 
 						else 			data_out <= lsr_val;
 					end
-					3'b110: data_out <= msr_val;
-					3'b111:	data_out <= spr_val;
+					MSR_REGISTER: data_out <= msr_val;
+					SPR_REGISTER: data_out <= spr_val;
 				endcase
 			end
 		end
+	end
+
+	always_comb begin
+		if(fifo_sel) 	rhr_out = rx_fifo_in[7:0];
+		else 			rhr_out = rhr_val;
 	end
 
 
@@ -146,7 +158,7 @@ module ip_control_block (
 		.clk   		(clk)						,
 		.resetn		(resetn)					,
 		.din   		(data_in)					,
-		.wr_en 		((add == '0) && iow && (lcr_val[7] == 0))		,
+		.wr_en 		((add == THR_REGISTER) && iow && (lcr_val[7] == 0))		,
 		.dout  		(thr_val)
 	);
 
@@ -156,7 +168,7 @@ module ip_control_block (
 			thr_valid <= '0;
 		end else begin
 			// TODO: once thr is loaded the valid flag should be set to 0
-			if((add == '0) && iow && (lcr_val[7] == 0)) thr_valid <= 1'b1;
+			if((add == THR_REGISTER) && iow && (lcr_val[7] == 0)) thr_valid <= 1'b1;
 			else if(tx_ready == 1'b1) thr_valid <= 1'b0;
 			else thr_valid <= thr_valid;
 		end
@@ -170,7 +182,7 @@ module ip_control_block (
 		.clk   (clk),
 		.resetn(resetn),
 		.din   (data_in),
-		.wr_en ((add == 3'b001) && iow),
+		.wr_en ((add == IER_REGISTER) && iow),
 		.dout  (ier_val)
 	);
 
@@ -184,7 +196,7 @@ module ip_control_block (
 
 	// set individual flags to set the values of ISR register
 	register #(
-		.DEFAULT_VAL(0),
+		.DEFAULT_VAL(1),
 		.WIDTH      (1)
 	) fifos_en1(
 		.clk   (clk),
@@ -195,7 +207,7 @@ module ip_control_block (
 	);
 
 	register #(
-		.DEFAULT_VAL(0),
+		.DEFAULT_VAL(1),
 		.WIDTH      (1)
 	) fifos_en2_flag(
 		.clk   (clk),
@@ -267,7 +279,7 @@ module ip_control_block (
 		.clk   (clk)						,
 		.resetn(resetn)						,
 		.din   (data_in)					,
-		.wr_en ((add == 3'b010) && iow)		,
+		.wr_en ((add == FCR_REGISTER) && iow)		,
 		.dout  (fcr_val)
 	);
 
@@ -277,7 +289,7 @@ module ip_control_block (
 		.clk   (clk)						,
 		.resetn(resetn)						,
 		.din   (data_in)					,
-		.wr_en ((add==3'b011) && iow)		,
+		.wr_en ((add==LCR_REGISTER) && iow)		,
 		.dout  (lcr_val)
 	);
 
@@ -287,7 +299,7 @@ module ip_control_block (
 		.clk   (clk)						,
 		.resetn(resetn)						,
 		.din   (data_in)					,
-		.wr_en ((add==3'b100) && iow)		,
+		.wr_en ((add==MCR_REGISTER) && iow)		,
 		.dout  (mcr_val)
 	);
 
@@ -529,7 +541,7 @@ module ip_control_block (
 
 	assign lcr_out = lcr_val;
 	assign thr_out = thr_val;
-
+	assign fcr_out = fcr_val;
 
 endmodule
 

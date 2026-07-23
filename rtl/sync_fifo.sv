@@ -25,7 +25,12 @@ module sync_fifo #(parameter DEPTH=8, DWIDTH=16)
   reg [DWIDTH-1:0] fifo[DEPTH];
 
   always @(posedge clk or negedge rstn) begin
-    if (!rstn) wptr <= 0;
+    if (!rstn) begin 
+      wptr <= 0; 
+      for (int i = 0; i < DEPTH; i++) begin
+        fifo[i] <= '0;
+      end
+    end
     else if (wr_en & !full) begin
       fifo[wptr[$clog2(DEPTH)-1:0]] <= din;   // index with lower bits only
       wptr <= wptr + 1;
@@ -35,7 +40,6 @@ module sync_fifo #(parameter DEPTH=8, DWIDTH=16)
   always @(posedge clk or negedge rstn) begin
     if (!rstn) rptr <= 0;
     else if (rd_en & !empty) begin
-      dout <= fifo[rptr[$clog2(DEPTH)-1:0]];  // index with lower bits only
       rptr <= rptr + 1;
     end
   end
@@ -46,6 +50,6 @@ module sync_fifo #(parameter DEPTH=8, DWIDTH=16)
                  (wptr[$clog2(DEPTH)-1:0] == rptr[$clog2(DEPTH)-1:0]);
 
   assign empty = (wptr == rptr);
-
+  assign dout = fifo[rptr[$clog2(DEPTH)-1:0]];
 
 endmodule
