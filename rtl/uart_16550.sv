@@ -51,7 +51,7 @@ module uart_16550 (
 	// set the interface here, and the interface will then
 	sync_fifo #(
 		.DEPTH(16), 
-		.DWIDTH(8)
+		.DWIDTH(11)
 	) RHR_fifo(
 		.clk  			(clk)						,
 		.rstn 			(resetn)					,

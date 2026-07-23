@@ -49,6 +49,11 @@ module uart_16550_core (
 	logic o_parity_err;
 	logic thr_empty;
 	logic sel_fifo;	
+	logic [7:0] reg_thr_val;
+	logic reg_thr_valid;
+	logic reg_frame_err;
+	logic reg_parity_err;
+	logic tx_load_fifo;
 
 	assign io_write = iow && ~iow_n;
 	assign io_read  = ior && ~ior_n;
@@ -64,8 +69,6 @@ module uart_16550_core (
 
 	// TODO: rhr value can also come from a rx fifo if it is enabled
 	// need to add define with seperate routing in that case
-	logic reg_frame_err;
-	logic reg_parity_err;
 	ip_control_block uart_ctrl(
 		.clk     				(clk),
 		.resetn  				(resetn),
@@ -87,8 +90,8 @@ module uart_16550_core (
 		.RHR_IN  				(rhr_val),
 		.fcr_out           		(fcr_val),
 		.tx_ready 				(tx_ready),
-		.thr_valid				(thr_valid),
-		.thr_out  				(thr_val),
+		.thr_valid				(reg_thr_valid),
+		.thr_out  				(reg_thr_val),
 		.rx_fifo_in        		(uart_if.fifo_rx_out),
 		.fifo_sel          		(sel_fifo),
 		// LSR flags
@@ -127,12 +130,12 @@ module uart_16550_core (
 		.resetn     	(resetn),
 		.lcr_val    	(lcr_val),
 		.rxd        	(rxd),
-		.thr_val    	(thr_val),
+		.thr_val    	(thr_val),   // output from the mux
 		.BR         	(o_DL),
 		.rhr_val		(rhr_val),
-		.load_rx_reg	(load_rhr), // currently this signal loads the rhr register
+		.load_rx_reg	(load_rhr),
 		.tx_ready   	(tx_ready),
-		.thr_valid  	(thr_valid),
+		.thr_valid  	(thr_valid), // this will come from the output of a mux
 		.thr_write   	(thr_write),
 		.o_frame_err	(reg_frame_err),
 		.thr_empty   	(thr_empty),
@@ -153,18 +156,27 @@ module uart_16550_core (
 	// load rhr fifo is basically fifo_rx_push
 	always_comb begin
 		if(sel_fifo) begin
-			uart_if.fifo_rx_push = load_rhr;
+			uart_if.fifo_rx_push 	= load_rhr;
 			// [BI, FE, PE, DATA] (Break indication ignored for now)
-			uart_if.fifo_rx_in = {1'b0, rx_fifo_frame_err, rx_fifo_parity_err, rhr_val};
-			load_rhr_reg 	= '0;
-			o_frame_err = rx_fifo_frame_err;
-			o_parity_err = rx_fifo_parity_err;
+			uart_if.fifo_rx_in 		= {1'b0, rx_fifo_frame_err, rx_fifo_parity_err, rhr_val};
+			// data in given to fifo_tx_in, write to occur via control block
+			uart_if.fifo_tx_in 		= data_in;
+			uart_if.fifo_tx_push 	= tx_load_fifo;
+			load_rhr_reg 			= '0;
+			o_frame_err				= rx_fifo_frame_err;
+			o_parity_err 			= rx_fifo_parity_err;
+			thr_val 				= uart_if.fifo_tx_out;
+			thr_valid 				= ~uart_if.fifo_tx_empty;
+			uart_if.fifo_tx_pop 	= ~uart_if.fifo_tx_empty && tx_ready; 
 		end
 		else begin
-			load_rhr_reg 	= load_rhr;
-			uart_if.fifo_rx_push = 0;
-			o_frame_err = reg_frame_err;
-			o_parity_err = reg_parity_err;
+			load_rhr_reg 			= load_rhr;
+			uart_if.fifo_rx_push 	= 0;
+			uart_if.fifo_tx_in 		= '0;
+			o_frame_err 			= reg_frame_err;
+			o_parity_err 			= reg_parity_err;
+			thr_val 				= reg_thr_val;
+			thr_valid 				= reg_thr_valid;
 		end
 	
 	end
@@ -180,8 +192,14 @@ module uart_16550_core (
 		end
 	end
 
-
-	// take the data inside of the fifo to update the flags of PE and 
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			tx_load_fifo <= 0;
+		end else begin
+			if(add == THR_REGISTER && fcr_val[0] && (~lcr_val[7]) && iow) 	tx_load_fifo <= 1'b1;
+			else 															tx_load_fifo <= 1'b0;			
+		end
+	end
 
 
 endmodule
