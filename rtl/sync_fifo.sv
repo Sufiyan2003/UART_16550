@@ -8,14 +8,15 @@
 
 module sync_fifo #(parameter DEPTH=8, DWIDTH=16)
 (
-    input                   rstn,
-                            clk,
-                            wr_en,
-                            rd_en,
-    input      [DWIDTH-1:0] din,
-    output reg [DWIDTH-1:0] dout,
-    output                  empty,
-                            full
+    input                     rstn,
+                              clk,
+                              wr_en,
+                              rd_en,
+    input      [DWIDTH-1:0]   din,
+    output reg [DWIDTH-1:0]   dout,
+    output                    empty,
+                              full,
+    output [$clog2(DEPTH):0]  occupied
 );
 
   // One extra bit on pointers to distinguish full vs empty
@@ -51,5 +52,5 @@ module sync_fifo #(parameter DEPTH=8, DWIDTH=16)
 
   assign empty = (wptr == rptr);
   assign dout = fifo[rptr[$clog2(DEPTH)-1:0]];
-
+  assign occupied = wptr - rptr;
 endmodule
