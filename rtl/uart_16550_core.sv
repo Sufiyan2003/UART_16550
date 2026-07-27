@@ -42,6 +42,7 @@ module uart_16550_core (
 	logic [7:0] thr_val;
 	logic [7:0] isr_val;
 	logic [7:0] fcr_val;
+	logic [7:0] msr_val;
 	logic load_rhr;
 	logic load_rhr_reg;
 	logic tx_ready;
@@ -92,6 +93,7 @@ module uart_16550_core (
 		.RHR_IN  				(rhr_val),
 		.fcr_out           		(fcr_val),
 		.mcr_out           		(mcr_val),
+		.msr_out           		(msr_val),
 		.tx_ready 				(tx_ready),
 		.thr_valid				(reg_thr_valid),
 		.thr_out  				(reg_thr_val),
@@ -108,14 +110,11 @@ module uart_16550_core (
 		.i_overrun_err			(),
 		.i_data_ready			(load_rhr_reg),
 		// MSR flags
-		.i_CD					(),
-		.i_RI					(),
-		.i_DSR					(),
-		.i_CTS					(),
-		.i_delta_CD				(),
-		.i_trailing_edge_RI		(),
-		.i_delta_DSR			(),
-		.i_delta_CTS			(),
+		.i_CD					(~cd_n),
+		.i_RI					(~ri_n),
+		.i_DSR					(~dsr_n),
+		.i_CTS					(~cts_n),
+		.i_trailing_edge_RI		(ri_n),
 		// ISR flags
 		.i_fifos_en1			(),
 		.i_fifos_en2			(),
@@ -214,11 +213,6 @@ module uart_16550_core (
 			else 															tx_load_fifo <= 1'b0;			
 		end
 	end
-
-
-	// the tranmitter is ready to send
-	assign rts_n = ~mcr_val[1];
-
 
 
 endmodule
