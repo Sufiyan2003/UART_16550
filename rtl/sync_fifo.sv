@@ -17,6 +17,7 @@ module sync_fifo #(parameter DEPTH=8, DWIDTH=16)
     output                  empty,
                             full,
     output [$clog2(DEPTH):0] o_occupancy_count
+
 );
 
   // One extra bit on pointers to distinguish full vs empty
@@ -52,5 +53,7 @@ module sync_fifo #(parameter DEPTH=8, DWIDTH=16)
 
   assign empty = (wptr == rptr);
   assign dout = fifo[rptr[$clog2(DEPTH)-1:0]];
+
   assign o_occupancy_count = wptr - rptr;
+
 endmodule
