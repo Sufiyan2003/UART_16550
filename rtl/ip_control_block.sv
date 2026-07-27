@@ -271,7 +271,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_intr_stat),
 		.dout  (intrpt_status),
-		.wr_en ()
+		.wr_en ()  				// write this whenever any of the interrupts go
 	);
 
 	// this will be one full register
@@ -554,10 +554,6 @@ module ip_control_block (
 	assign mcr_out = mcr_val;
 	assign msr_out = msr_val;
 
-	assign CD = i_CD;
-	assign RI = i_RI;
-	assign DSR = i_DSR;
-	assign CTS = i_CTS;
 
 	// detect msr read req
 	assign msr_read = ior && (add == MSR_REGISTER);

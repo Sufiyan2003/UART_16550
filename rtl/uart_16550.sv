@@ -36,6 +36,9 @@ module uart_16550 (
 
 	logic rxd_q;
 	logic [7:0] mcr_val;
+	logic [7:0] fcr_val;
+	logic [3:0] rcvr_count;
+	logic [3:0] data_bytes_rcvd;
 
 	// uart connection with the internal fifos
 	uart_interface uart_if(clk, resetn);
@@ -74,6 +77,7 @@ module uart_16550 (
 		.out1_n					(out1_n),
 		.out2_n					(out2_n),
 		.mcr_val 				(mcr_val),
+		.fcr_val  				(fcr_val),
 		.txd 					(txd)
 	);
 
@@ -82,19 +86,34 @@ module uart_16550 (
 	--  		Rx and Tx fifos connected with the fifo uart interface
 	------------------------------------------------------------------------------*/
 
+	always_comb begin
+		case (fcr_val[7:6])
+			2'b00: rcvr_count = 1;
+			2'b01: rcvr_count = 4;
+			2'b10: rcvr_count = 8;
+			2'b11: rcvr_count = 14;
+		endcase
+	end
+
+	always_comb begin
+		if(data_bytes_rcvd >= rcvr_count) 	uart_if.fifo_rx_triggered = 1'b1;
+		else 								uart_if.fifo_rx_triggered = 1'b0;
+	end
+
 	// set the interface here, and the interface will then
 	sync_fifo #(
 		.DEPTH(16), 
 		.DWIDTH(11)
 	) RHR_fifo(
-		.clk  			(clk)						,
-		.rstn 			(resetn)					,
-		.wr_en			(uart_if.fifo_rx_push)		,
-		.rd_en			(uart_if.fifo_rx_pop)		,
-		.din  			(uart_if.fifo_rx_in)		,
-		.dout 			(uart_if.fifo_rx_out)		,
-		.empty			(uart_if.fifo_rx_empty)		,
-		.full 			(uart_if.fifo_rx_full)
+		.clk  				(clk)						,
+		.rstn 				(resetn)					,
+		.wr_en				(uart_if.fifo_rx_push)		,
+		.rd_en				(uart_if.fifo_rx_pop)		,
+		.din  				(uart_if.fifo_rx_in)		,
+		.dout 				(uart_if.fifo_rx_out)		,
+		.empty				(uart_if.fifo_rx_empty)		,
+		.full 				(uart_if.fifo_rx_full)		,
+		.o_occupancy_count	(data_bytes_rcvd)
 	);
 	
 	sync_fifo #(
@@ -116,23 +135,10 @@ module uart_16550 (
 	// TODO: add the loopback block here
 	always_comb begin
 		if(mcr_val[4]) 	rxd_q = txd;
-		else 			rxd_q = rxd;
+	else 			rxd_q = rxd;
 	end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	assign uart_if.fifo_rx_trig_level = fcr_val[7:6]; 
 
 endmodule
 

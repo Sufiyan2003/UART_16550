@@ -32,6 +32,7 @@ module uart_16550_core (
 	output out1_n					,
 	output out2_n					,
 	output [7:0] mcr_val			,
+	output [7:0] fcr_val			,
 	output logic txd
 );
 	
@@ -41,7 +42,6 @@ module uart_16550_core (
 	logic [7:0] rhr_val;
 	logic [7:0] thr_val;
 	logic [7:0] isr_val;
-	logic [7:0] fcr_val;
 	logic [7:0] msr_val;
 	logic load_rhr;
 	logic load_rhr_reg;
