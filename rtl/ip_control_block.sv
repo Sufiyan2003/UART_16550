@@ -26,6 +26,7 @@ module ip_control_block (
 	output [7:0] thr_out,
 	output [7:0] isr_out,
 	output [7:0] fcr_out,
+	output [7:0] mcr_out,
 	output logic thr_valid,
 	input tx_ready,
 
@@ -542,7 +543,7 @@ module ip_control_block (
 	assign lcr_out = lcr_val;
 	assign thr_out = thr_val;
 	assign fcr_out = fcr_val;
-
+	assign mcr_out = mcr_val;
 endmodule
 
 

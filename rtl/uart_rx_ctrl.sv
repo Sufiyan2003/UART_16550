@@ -31,7 +31,7 @@ module uart_rx_ctrl (
 
  
 	typedef enum {IDLE, START, DATA, PARITY, STOP} uart_st;
-	uart_st rx_state, rx_state_nxt;
+	uart_st rx_state, rx_state_nxt, rx_state_prev;
 
 	logic [3:0] rcvd_data_bits;
     logic  rcvd_stop_bits;
@@ -54,6 +54,7 @@ module uart_rx_ctrl (
 			rx_state <= IDLE;
 		end else begin
 			rx_state <= rx_state_nxt;
+			rx_state_prev <= rx_state;
 		end
 	end
 
@@ -110,9 +111,11 @@ module uart_rx_ctrl (
 			STOP 	: begin
 				if(rx_counter == BR-1) begin
 					clear_rx_counter = 1'b1;
-					if((rcvd_stop_bits == i_stop_bits) && (rxd == 1'b1)) 	rx_state_nxt = IDLE;
-					else 													rx_state_nxt = STOP;
+					if((rcvd_stop_bits == i_stop_bits) && (rxd == 1'b1)) 		rx_state_nxt = IDLE;
+					else if((rcvd_stop_bits == i_stop_bits) && (rxd == 1'b0)) 	rx_state_nxt = START;
+					else 														rx_state_nxt = STOP;
 				end
+
 				else 
 					clear_rx_counter = 1'b0;
 			end
@@ -192,8 +195,8 @@ module uart_rx_ctrl (
 	------------------------------------------------------------------------------*/
 	always_comb begin
 	    rx_shift_reg = 1'b0;
-	    if (rx_state == DATA && rx_counter == BR-1) rx_shift_reg = 1'b1;
-	    else 																				rx_shift_reg = 1'b0;
+	    if ((rx_state == DATA) && rx_counter == BR-1) rx_shift_reg = 1'b1;
+	    else rx_shift_reg = 1'b0;
 	    
 	end
 
@@ -236,7 +239,7 @@ module uart_rx_ctrl (
 		end else begin
 			// if the packet is finished and there are no errors
 			// TODO: need to check if less stop bits are sent
-			if(rx_state == STOP && rx_state_nxt == IDLE) begin
+			if(rx_state == STOP && (rx_state_nxt == IDLE || rx_state_nxt == START)) begin
 				if(parity_err == 1'b0) load_rx_reg <= 1'b1;
 				else load_rx_reg <= 1'b0;
 			end

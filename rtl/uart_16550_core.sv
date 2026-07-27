@@ -31,7 +31,8 @@ module uart_16550_core (
 	output dtr_n					,
 	output out1_n					,
 	output out2_n					,
-	output txd
+	output [7:0] mcr_val			,
+	output logic txd
 );
 	
 	logic io_read, io_write;
@@ -54,6 +55,7 @@ module uart_16550_core (
 	logic reg_frame_err;
 	logic reg_parity_err;
 	logic tx_load_fifo;
+	logic tx_pop_reg;
 
 	assign io_write = iow && ~iow_n;
 	assign io_read  = ior && ~ior_n;
@@ -89,6 +91,7 @@ module uart_16550_core (
 		.isr_out           		(isr_val),
 		.RHR_IN  				(rhr_val),
 		.fcr_out           		(fcr_val),
+		.mcr_out           		(mcr_val),
 		.tx_ready 				(tx_ready),
 		.thr_valid				(reg_thr_valid),
 		.thr_out  				(reg_thr_val),
@@ -126,20 +129,21 @@ module uart_16550_core (
 
 	// framing errors might come from rxtx control or it can come from the fifo, rename it to act as an output of a mux
 	uart_rxtx_block uart_rxtx_blk(
-		.clk        	(clk),
-		.resetn     	(resetn),
-		.lcr_val    	(lcr_val),
-		.rxd        	(rxd),
-		.thr_val    	(thr_val),   // output from the mux
-		.BR         	(o_DL),
-		.rhr_val		(rhr_val),
-		.load_rx_reg	(load_rhr),
-		.tx_ready   	(tx_ready),
-		.thr_valid  	(thr_valid), // this will come from the output of a mux
-		.thr_write   	(thr_write),
-		.o_frame_err	(reg_frame_err),
-		.thr_empty   	(thr_empty),
-		.o_parity_err	(reg_parity_err)
+		.clk        	(clk)				,
+		.resetn     	(resetn)			,
+		.lcr_val    	(lcr_val)			,
+		.rxd        	(rxd)				,
+		.thr_val    	(thr_val)			,   // output from the mux
+		.BR         	(o_DL)				,
+		.rhr_val		(rhr_val)			,
+		.load_rx_reg	(load_rhr)			,
+		.tx_ready   	(tx_ready)			,
+		.thr_valid  	(thr_valid)			, // this will come from the output of a mux
+		.thr_write   	(thr_write)			,
+		.o_frame_err	(reg_frame_err)		,
+		.thr_empty   	(thr_empty)			,
+		.o_parity_err	(reg_parity_err)	,
+		.txd         	(txd)
 	);
 
 
@@ -165,9 +169,9 @@ module uart_16550_core (
 			load_rhr_reg 			= '0;
 			o_frame_err				= rx_fifo_frame_err;
 			o_parity_err 			= rx_fifo_parity_err;
-			thr_val 				= uart_if.fifo_tx_out;
+			thr_val 				= uart_if.fifo_tx_out[7:0];
 			thr_valid 				= ~uart_if.fifo_tx_empty;
-			uart_if.fifo_tx_pop 	= ~uart_if.fifo_tx_empty && tx_ready; 
+			uart_if.fifo_tx_pop 	= tx_pop_reg; 
 		end
 		else begin
 			load_rhr_reg 			= load_rhr;
@@ -181,13 +185,23 @@ module uart_16550_core (
 	
 	end
 
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			tx_pop_reg <= 0;
+		end else begin
+			tx_pop_reg <= (~uart_if.fifo_tx_empty && tx_ready);
+		end
+	end
+
+
+
 	// pop from the fifo
 	always_ff @(posedge clk or negedge resetn) begin
 		if(~resetn) begin
 	 		uart_if.fifo_rx_pop <= 0;
 		end else begin
 			// if fifos are enabled by the user
-	 		if(io_read && (add == RHR_REGISTER) && fcr_val[0]) 	uart_if.fifo_rx_pop <= 1'b1;
+	 		if(io_read && (add == RHR_REGISTER) && fcr_val[0] && ior) 	uart_if.fifo_rx_pop <= 1'b1;
 	 		else 												uart_if.fifo_rx_pop <= 1'b0;
 		end
 	end
@@ -200,6 +214,11 @@ module uart_16550_core (
 			else 															tx_load_fifo <= 1'b0;			
 		end
 	end
+
+
+	// the tranmitter is ready to send
+	assign rts_n = ~mcr_val[1];
+
 
 
 endmodule

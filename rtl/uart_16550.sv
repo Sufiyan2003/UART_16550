@@ -34,13 +34,47 @@ module uart_16550 (
 	output txd
 );
 
+	logic rxd_q;
+	logic [7:0] mcr_val;
 
 	// uart connection with the internal fifos
 	uart_interface uart_if(clk, resetn);
 
 	// instantiate the uart_16550 core
 	uart_16550_core uart_core(
-		.*
+		.clk					(clk),
+		.resetn					(resetn),
+		.data_in				(data_in),
+		.cs1					(cs1),
+		.cs2					(cs2),
+		.cs_n					(cs_n),
+		.ior 					(ior),
+		.ior_n					(ior_n),
+		.iow 					(iow),
+		.iow_n					(iow_n),
+		.add					(add),
+		.dma_rxend 				(dma_rxend),
+		.dma_txend				(dma_txend),
+		.cts_n					(cts_n),
+		.dsr_n					(dsr_n),
+		.ri_n					(ri_n),
+		.cd_n					(cd_n),
+		.rxd					(rxd_q),
+		.uart_if 				(uart_if),
+		.data_out				(data_out),
+		.outen					(outen),
+		.irq 					(irq),
+		.irq_n					(irq_n),
+		.rxrdy 					(rxrdy),
+		.rxrdy_n				(rxrdy_n),
+		.txrdy 					(txrdy),
+		.txrdy_n				(txrdy_n),
+		.rts_n					(rts_n),
+		.dtr_n					(dtr_n),
+		.out1_n					(out1_n),
+		.out2_n					(out2_n),
+		.mcr_val 				(mcr_val),
+		.txd 					(txd)
 	);
 
 
@@ -79,7 +113,11 @@ module uart_16550 (
 
 
 
-
+	// TODO: add the loopback block here
+	always_comb begin
+		if(mcr_val[4]) 	rxd_q = txd;
+		else 			rxd_q = rxd;
+	end
 
 
 

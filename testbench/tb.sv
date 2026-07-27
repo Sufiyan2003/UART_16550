@@ -65,7 +65,9 @@ module tb;
 	always #0.5ns clk = ~clk;
 	bit [7:0] reg_data;
 
-	byte array[] = '{8'h56, 8'h23, 8'h78, 8'h69};
+	// sent: 8'b0101_0110  - > 8'b1101_0100
+	// after one more right shift 0110_1010
+	byte array[] = '{8'h96, 8'h23, 8'h78, 8'h69};
 	// block to test out the registers 
 	initial begin
 		#100ns;
@@ -75,12 +77,15 @@ module tb;
 		read_from_reg(DLL_REGISTER);
 		write_to_reg(8'h01, FCR_REGISTER); // enable fifos only 
 		set_uart_frame(2'b11, 1'b0, 1'b1, 1'b1, 1'b0, 1'b0, 1'b0);
+		loopback_test();
 		#100ns;
 		foreach (array[i]) begin
-			send_uart_byte(array[i]);
+			// send_uart_byte(array[i]);
+			send_data(array[i]);
 		end
-		send_data(8'hEA);
-		#1000ns;
+
+		// send_data(8'hEA);
+		#15000ns;
 		read_from_reg(RHR_REGISTER);
 		// #5000ns;
 		// send_data(8'hBB);
@@ -185,6 +190,11 @@ module tb;
     
   	endtask
 
+
+  	task loopback_test();
+  		$display("Setting the loopback bit");
+  		write_to_reg(8'h10, MCR_REGISTER);
+  	endtask : loopback_test
 
 
   	// driving the differential signals	
