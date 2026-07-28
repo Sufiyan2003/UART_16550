@@ -243,7 +243,7 @@ module uart_rx_ctrl (
 		end else begin
 			// if the packet is finished and there are no errors
 			// TODO: need to check if less stop bits are sent
-			if((rx_state == STOP && (rx_state_nxt == IDLE || rx_state_nxt == START)) && !rx_fifo_full) load_rx_reg <= 1'b1;
+			if((rx_state == STOP && (rx_state_nxt == IDLE || rx_state_nxt == START))) load_rx_reg <= 1'b1;
 			else 																	load_rx_reg <= 1'b0;
 		end
 	end
@@ -265,6 +265,7 @@ module uart_rx_ctrl (
 				timeout_counter <= '0;
 				rx_timeout <= 1'b0;
 			end
+			else if(load_rx_reg == 1'b1) timeout_counter <= 1'b0;
 			else if(timeout_counter == (4*char_time - 1)) rx_timeout <= 1'b1;
 			else begin 
 				timeout_counter <= timeout_counter + 1'b1;
