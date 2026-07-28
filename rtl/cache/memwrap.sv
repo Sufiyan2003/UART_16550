@@ -10,7 +10,8 @@
 module memwrap  #(
 	parameter DWIDTH=32,
 	parameter ADDR_WIDTH=8,
-	parameter DEPTH=16
+	parameter DEPTH=16,
+	parameter [DWIDTH-1:0] DEFAULT_VAL = {DWIDTH{1'b0}} 
 )(
 	input 							clk			,
 	input 							resetn		,
@@ -28,11 +29,12 @@ module memwrap  #(
 		if(~resetn) begin
 			o_data <= '0;
 			for (int i = 0; i < DEPTH; i++) begin
-				mem[i] <= '0;
+				mem[i] <= DEFAULT_VAL;
 			end
 		end else begin
 			if(write_en && !read_en) mem[i_addr] <= i_data;
 			else if(!write_en && read_en) o_data <= mem[i_addr];
+			else o_data <= o_data;
 		end
 	end
 
