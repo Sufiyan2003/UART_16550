@@ -11,6 +11,7 @@
 ./rtl/uart_tx_ctrl.sv
 ./rtl/uart_rxtx_block.sv
 ./rtl/ip_control_block.sv
+./rtl/uart_interrupt_control.sv
 ./rtl/uart_16550_core.sv
 ./rtl/uart_16550.sv
 

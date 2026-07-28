@@ -26,8 +26,12 @@ module ip_control_block (
 	output [7:0] thr_out,
 	output [7:0] isr_out,
 	output [7:0] fcr_out,
+	output [7:0] mcr_out,
+	output [7:0] msr_out,
+	output [7:0] lsr_out,
 	output logic thr_valid,
 	input tx_ready,
+	output thr_empty,
 
 	// input from the external fifo
 	input [10:0] rx_fifo_in,
@@ -36,7 +40,6 @@ module ip_control_block (
 	// LSR register input
 	input i_fifo_err,
 	input i_transmit_empty,
-	input i_thr_empty,
 	input i_thr_write,
 	input i_break_intr,
 	input i_framing_err,
@@ -49,10 +52,7 @@ module ip_control_block (
 	input i_RI,
 	input i_DSR,
 	input i_CTS,
-	input i_delta_CD,
 	input i_trailing_edge_RI,
-	input i_delta_DSR,
-	input i_delta_CTS,
 
 	// ISR
 	input i_fifos_en1,
@@ -85,6 +85,16 @@ module ip_control_block (
 	logic [7:0] rhr_out;
 	// output the baud rate from this rapper to the core to the tick generator
 	assign o_DL = {dlm_val, dll_val};
+
+
+
+	// delta CTS flag (to detect change in CTS after previous read)
+	logic cts_q, dsr_q, ri_q, cd_q;
+	logic cts_changed, dsr_changed, cd_changed, ri_trailing_edge_changed;
+	logic msr_read;
+	logic del_cts, del_dsr, del_cd,trail_ri;
+
+
 	/*------------------------------------------------------------------------------
 	--  							Decode stage
 	------------------------------------------------------------------------------*/
@@ -167,13 +177,14 @@ module ip_control_block (
 		if(~resetn) begin
 			thr_valid <= '0;
 		end else begin
-			// TODO: once thr is loaded the valid flag should be set to 0
+			// TODO: check if fifos are enabled or not
 			if((add == THR_REGISTER) && iow && (lcr_val[7] == 0)) thr_valid <= 1'b1;
 			else if(tx_ready == 1'b1) thr_valid <= 1'b0;
 			else thr_valid <= thr_valid;
 		end
 	end
 
+	assign thr_empty = ~thr_valid;
 
 
 	register #(
@@ -262,7 +273,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_intr_stat),
 		.dout  (intrpt_status),
-		.wr_en ()
+		.wr_en ()  				// write this whenever any of the interrupts go
 	);
 
 	// this will be one full register
@@ -335,9 +346,9 @@ module ip_control_block (
 	) thr_empty_flag(
 		.clk   (clk),
 		.resetn(resetn),
-		.din   (i_thr_empty),
+		.din   (~thr_valid),
 		.dout  (thr_empty_bit),
-		.wr_en (i_thr_write) // write needs to be a pulse so that we can write this flag
+		.wr_en (1'b1) // write needs to be a pulse so that we can write this flag
 	);
 
 	register #(
@@ -348,7 +359,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_break_intr),
 		.dout  (break_intrpt),
-		.wr_en ()
+		.wr_en (1'b1)
 	);
 
 
@@ -360,7 +371,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_framing_err),
 		.dout  (framing_err),
-		.wr_en ()
+		.wr_en (1'b1)
 	);
 
 	register #(
@@ -371,7 +382,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_parity_err),
 		.dout  (parity_err),
-		.wr_en ()
+		.wr_en (1'b1)
 	);
 
 	register #(
@@ -382,7 +393,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_overrun_err),
 		.dout  (overrun_err),
-		.wr_en ()
+		.wr_en (1'b1)
 	);
 
 
@@ -440,7 +451,7 @@ module ip_control_block (
 	) CTS_flag(
 		.clk   (clk),
 		.resetn(resetn),
-		.din   (i_CTS),
+		.din   (cts_changed),
 		.dout  (CTS),
 		.wr_en ()
 	);
@@ -452,7 +463,7 @@ module ip_control_block (
 	) delta_CD_flag(
 		.clk   (clk),
 		.resetn(resetn),
-		.din   (i_delta_CD),
+		.din   (del_cd),
 		.dout  (delta_CD),
 		.wr_en ()
 	);
@@ -463,7 +474,7 @@ module ip_control_block (
 	) trailing_edge_RI_flag(
 		.clk   (clk),
 		.resetn(resetn),
-		.din   (i_trailing_edge_RI),
+		.din   (ri_trailing_edge_changed),
 		.dout  (trailing_edge_RI),
 		.wr_en ()
 	);
@@ -474,7 +485,7 @@ module ip_control_block (
 	) delta_DSR_flag(
 		.clk   (clk),
 		.resetn(resetn),
-		.din   (i_delta_DSR),
+		.din   (del_dsr),
 		.dout  (delta_DSR),
 		.wr_en ()
 	);
@@ -486,7 +497,7 @@ module ip_control_block (
 	) delta_CTS_flag(
 		.clk   (clk),
 		.resetn(resetn),
-		.din   (i_delta_CTS),
+		.din   (del_cts),
 		.dout  (delta_CTS),
 		.wr_en ()
 	);
@@ -542,6 +553,49 @@ module ip_control_block (
 	assign lcr_out = lcr_val;
 	assign thr_out = thr_val;
 	assign fcr_out = fcr_val;
+	assign mcr_out = mcr_val;
+	assign msr_out = msr_val;
+	assign lsr_out = lsr_val;
+
+	// detect msr read req
+	assign msr_read = ior && (add == MSR_REGISTER);
+
+	// detecting change in bits
+	assign cts_changed = (CTS != cts_q);
+	assign dsr_changed = (DSR != dsr_q);
+	assign cd_changed = (CD != cd_q);
+	assign ri_trailing_edge_changed = (trailing_edge_RI==1'b1 && i_trailing_edge_RI==1'b0);
+
+
+
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			cts_q <= 1'b0;
+			dsr_q <= 1'b0;
+			ri_q <= 1'b0;
+			cd_q <= 1'b0;
+		end else begin
+			cts_q <= i_CTS;
+			dsr_q <= i_DSR;
+			ri_q <= i_trailing_edge_RI;
+			cd_q <= i_CD;
+		end
+	end
+
+
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			del_cts <= '0;
+			del_dsr <= '0;
+			del_cd <= '0;
+			trail_ri <= '0;
+		end else begin
+			del_cts <= cts_changed ? 1'b1 : (msr_read ? 1'b0 : del_cts);
+			del_dsr <= dsr_changed ? 1'b1 : (msr_read ? 1'b0 : del_dsr);
+			del_cd <= cd_changed ? 1'b1 : (msr_read ? 1'b0 : del_cd);
+			trail_ri <= ri_trailing_edge_changed ? 1'b1 : (msr_read ? 1'b0 :trail_ri);
+		end
+	end
 
 endmodule
 

@@ -14,7 +14,10 @@ module shift_register #(
 	input reset_val					,
 	input din						,
 	input wr_en						,
+	input dir						, // 0: LSB-first (UART convention) - new bit enters MSB, shifts down
+									  // 1: MSB-first - new bit enters LSB, shifts up
 	output [WIDTH-1:0] dout 		,
+	output logic shift_reg_empty 	,
 	output shift_out
 );
 	logic [WIDTH-1:0] 	data_out	;
@@ -24,24 +27,40 @@ module shift_register #(
 		if(~resetn) begin
 			data_out    <= DEFAULT_VAL;
 			shift_out_q <= '0;
+			shift_reg_empty <= 1'b1;
 		end
 		else if(reset_val == 1) begin
 			data_out    <= DEFAULT_VAL;
 			shift_out_q <= '0;
+			shift_reg_empty <= 1'b1;
 		end
 		else if(parallel_load) begin
-			data_out <= parallel_in;
+			data_out    <= parallel_in;
+			// first bit to present on shift_out, matching the direction
+			shift_out_q <= dir ? parallel_in[WIDTH-1] : parallel_in[0];
+			shift_reg_empty <= 1'b0;
 		end
 		else begin
 			if(wr_en) begin
-				// LSB-first shift: new bit enters at MSB, existing bits shift
-				// down toward LSB. This means the first bit received (which is
-				// the original byte's LSB, per UART LSB-first convention) ends
-				// up correctly parked at bit 0 once all WIDTH bits have shifted in.
-				data_out    <= {din, data_out[WIDTH-1:1]};
-				// captures the pre-shift LSB, i.e. the next bit to transmit
-				// (LSB-first) when this module is used as a TX shift register
-				shift_out_q <= data_out[0];
+				shift_reg_empty <= 1'b0;
+				if(dir == 1'b0) begin
+					// LSB-first: new bit enters at MSB, shifts down toward LSB.
+					data_out    <= {din, data_out[WIDTH-1:1]};
+					// tap the bit that will occupy position 0 AFTER this
+					// shift (= current data_out[1]) so shift_out presents
+					// the NEXT bit in sequence, not the one just sent.
+					shift_out_q <= data_out[1];
+				end
+				else begin
+					// MSB-first: new bit enters at LSB, shifts up toward MSB.
+					data_out    <= {data_out[WIDTH-2:0], din};
+					// symmetric fix: tap the bit that will occupy the top
+					// position after this shift (= current data_out[WIDTH-2])
+					shift_out_q <= data_out[WIDTH-2];
+				end
+			end
+			else begin
+				shift_reg_empty <= shift_reg_empty;
 			end
 		end
 	end

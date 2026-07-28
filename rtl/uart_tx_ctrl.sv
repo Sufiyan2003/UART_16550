@@ -16,7 +16,6 @@ module uart_tx_ctrl (
 	input thr_valid,
 	output logic [2:0] o_mux_sel,
 	output logic tx_shift_reg,
-	output logic thr_empty, // to let csrs know that the thr register is empty
 	output logic thr_write,
 	output logic tx_ready // shift register ready to accept data from thr csr
 );
@@ -116,17 +115,6 @@ module uart_tx_ctrl (
 
 	end
 
-	// to track emptiness of the thr register
-	always_ff @(posedge clk or negedge resetn) begin
-		if(~resetn) begin
-			thr_empty <= 0;
-		end else begin
-			if(tx_state==IDLE && tx_state_nxt==IDLE) thr_empty <= 1'b1;
-			else 									 thr_empty <= 1'b0;
-		end
-	end
-
-	// block to generate write to thr_empty flag
 	always_ff @(posedge clk or negedge resetn) begin
 		if(~resetn) begin
 			thr_write <= 0;
