@@ -28,8 +28,10 @@ module ip_control_block (
 	output [7:0] fcr_out,
 	output [7:0] mcr_out,
 	output [7:0] msr_out,
+	output [7:0] lsr_out,
 	output logic thr_valid,
 	input tx_ready,
+	output thr_empty,
 
 	// input from the external fifo
 	input [10:0] rx_fifo_in,
@@ -38,7 +40,6 @@ module ip_control_block (
 	// LSR register input
 	input i_fifo_err,
 	input i_transmit_empty,
-	input i_thr_empty,
 	input i_thr_write,
 	input i_break_intr,
 	input i_framing_err,
@@ -176,13 +177,14 @@ module ip_control_block (
 		if(~resetn) begin
 			thr_valid <= '0;
 		end else begin
-			// TODO: once thr is loaded the valid flag should be set to 0
+			// TODO: check if fifos are enabled or not
 			if((add == THR_REGISTER) && iow && (lcr_val[7] == 0)) thr_valid <= 1'b1;
 			else if(tx_ready == 1'b1) thr_valid <= 1'b0;
 			else thr_valid <= thr_valid;
 		end
 	end
 
+	assign thr_empty = ~thr_valid;
 
 
 	register #(
@@ -344,9 +346,9 @@ module ip_control_block (
 	) thr_empty_flag(
 		.clk   (clk),
 		.resetn(resetn),
-		.din   (i_thr_empty),
+		.din   (~thr_valid),
 		.dout  (thr_empty_bit),
-		.wr_en (i_thr_write) // write needs to be a pulse so that we can write this flag
+		.wr_en (1'b1) // write needs to be a pulse so that we can write this flag
 	);
 
 	register #(
@@ -357,7 +359,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_break_intr),
 		.dout  (break_intrpt),
-		.wr_en ()
+		.wr_en (1'b1)
 	);
 
 
@@ -369,7 +371,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_framing_err),
 		.dout  (framing_err),
-		.wr_en ()
+		.wr_en (1'b1)
 	);
 
 	register #(
@@ -380,7 +382,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_parity_err),
 		.dout  (parity_err),
-		.wr_en ()
+		.wr_en (1'b1)
 	);
 
 	register #(
@@ -391,7 +393,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_overrun_err),
 		.dout  (overrun_err),
-		.wr_en ()
+		.wr_en (1'b1)
 	);
 
 
@@ -553,7 +555,7 @@ module ip_control_block (
 	assign fcr_out = fcr_val;
 	assign mcr_out = mcr_val;
 	assign msr_out = msr_val;
-
+	assign lsr_out = lsr_val;
 
 	// detect msr read req
 	assign msr_read = ior && (add == MSR_REGISTER);

@@ -13,13 +13,18 @@ module uart_rxtx_block (
 	input [7:0] thr_val,
 	input [7:0] lcr_val,
 	input [15:0] BR,
+	input fifo_empty,
 	output [7:0] rhr_val,
 	output load_rx_reg,
 	output tx_ready,
 	output o_frame_err,
 	output o_parity_err,
-	output thr_empty,
 	output thr_write,
+	output rx_timeout,
+	output rx_shr_empty,
+	output tx_shr_empty,
+	input rx_fifo_full, // only when fifo mode is enabled
+	output fifo_overrun,
 	input thr_valid
 );
 
@@ -47,6 +52,7 @@ module uart_rxtx_block (
 		.wr_en			(rx_shift_reg),// this comes to enable regular shift
 		.dir          	(1'b0),
 		.dout			(rhr_val),
+		.shift_reg_empty(rx_shr_empty),
 		.shift_out		() 			// needed for tx reg only
 	);
 
@@ -60,6 +66,7 @@ module uart_rxtx_block (
 		.reset_val    	(0),
 		.wr_en    		(tx_shift_reg), // comes from tx_controller 
 		.dir          	(1'b0),
+		.shift_reg_empty(tx_shr_empty),
 		.parallel_in  	(thr_val), // 
 		.parallel_load	(load_thr), // comes from tx controller
 		.shift_out    	(thr_shift_out)
@@ -109,10 +116,14 @@ module uart_rxtx_block (
 		.i_parity_en (lcr_val[3]),
 		.i_stop_bits (lcr_val[2]),
 		.i_even_parity(lcr_val[4]),
+		.fifo_empty   (fifo_empty),
 		.BR          (BR),
 		.load_rx_reg  (load_rx_reg),
 		.frame_err    (frame_err),
 		.parity_err   (parity_err),
+		.rx_timeout   (rx_timeout),
+		.rx_fifo_full (rx_fifo_full),
+		.fifo_overrun (fifo_overrun),
 		.rx_shift_reg(rx_shift_reg)
 	);
 	
@@ -129,7 +140,6 @@ module uart_rxtx_block (
 		.thr_valid    (thr_valid),
 		.tx_shift_reg (tx_shift_reg),
 		.tx_ready     (tx_ready),
-		.thr_empty    (thr_empty),
 		.thr_write    (thr_write),
 		.o_mux_sel	  (mux_sel)
 	);

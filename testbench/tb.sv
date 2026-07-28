@@ -66,7 +66,7 @@ module tb;
 
 	// sent: 8'b0101_0110  - > 8'b1101_0100
 	// after one more right shift 0110_1010
-	byte array[] = '{8'h96, 8'h23, 8'h78, 8'h69, 8'hcd, 8'h87, 8'h34, 8'h56, 8'h10, 8'hff, 8'hb5, 8'ha2, 8'ha4, 8'h3,8'h14,8'h77};
+	byte array[] = '{8'h96, 8'h23, 8'h78, 8'h69, 8'hcd, 8'h87, 8'h34, 8'h56, 8'h10, 8'hff, 8'hb5, 8'ha2, 8'ha4, 8'h3,8'h14,8'h77,8'hAD, 8'hca};
 	// block to test out the registers 
 	initial begin
 		#100ns;
@@ -76,14 +76,14 @@ module tb;
 		read_from_reg(DLL_REGISTER);
 		write_to_reg({2'b11,6'h01}, FCR_REGISTER); // enable fifos only 
 		set_uart_frame(2'b11, 1'b0, 1'b1, 1'b1, 1'b0, 1'b0, 1'b0);
-		loopback_test();
+		// loopback_test();
 		#100ns;
 		foreach (array[i]) begin
-			// send_uart_byte(array[i]);
-			send_data(array[i]);
+			send_uart_byte(array[i]);
+			// send_data(array[i]);
 			#15000ns;
 		end
-		#10000ns;
+		// #10000ns;
 	  	$finish;
 
 	end

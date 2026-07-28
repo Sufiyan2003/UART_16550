@@ -13,9 +13,13 @@ module uart_rx_ctrl (
 	input i_parity_en,
 	input i_stop_bits,
 	input i_even_parity,
+	input fifo_empty,
+	input rx_fifo_full,
 	output logic rx_shift_reg,
 	output logic load_rx_reg,
 	output logic parity_err,
+	output logic rx_timeout,
+	output logic fifo_overrun,
 	output logic frame_err
 );
 
@@ -26,16 +30,16 @@ module uart_rx_ctrl (
 	logic [3:0] data_lim		;
 	logic clear_rx_counter		;
 	logic rx_d					;
-	logic rx_parity						;
+	logic rx_parity				;
 
+	logic [15:0] 	timeout_counter;
+	logic [15:0] 	char_time;
 
- 
 	typedef enum {IDLE, START, DATA, PARITY, STOP} uart_st;
 	uart_st rx_state, rx_state_nxt, rx_state_prev;
 
 	logic [3:0] rcvd_data_bits;
     logic  rcvd_stop_bits;
-
 
     // to save the previous value of rxd
     always_ff @(posedge clk or negedge resetn) begin
@@ -111,9 +115,9 @@ module uart_rx_ctrl (
 			STOP 	: begin
 				if(rx_counter == BR-1) begin
 					clear_rx_counter = 1'b1;
-					if((rcvd_stop_bits == i_stop_bits) && (rxd == 1'b1)) 		rx_state_nxt = IDLE;
-					else if((rcvd_stop_bits == i_stop_bits) && (rxd == 1'b0)) 	rx_state_nxt = START;
-					else 														rx_state_nxt = STOP;
+					if((rcvd_stop_bits == i_stop_bits) && (rxd == 1'b1)) 						rx_state_nxt = IDLE;
+					else if((rcvd_stop_bits == i_stop_bits) && (rxd == 1'b0 && rx_d == 1'b1)) 	rx_state_nxt = START;
+					else 																		rx_state_nxt = STOP;
 				end
 
 				else 
@@ -124,7 +128,7 @@ module uart_rx_ctrl (
 
 
 	/*------------------------------------------------------------------------------
-	--  													Frame Error
+	--  							Frame Error
 	------------------------------------------------------------------------------*/
 	always_ff @(posedge clk or negedge resetn) begin
 		if(~resetn) begin
@@ -231,7 +235,7 @@ module uart_rx_ctrl (
 	end
 
 	/*------------------------------------------------------------------------------
-	--  					Logic to load rx register in case of no error
+	--  			Logic to load rx register in case of no error
 	------------------------------------------------------------------------------*/
 	always_ff @(posedge clk or negedge resetn) begin
 		if(~resetn) begin
@@ -239,14 +243,48 @@ module uart_rx_ctrl (
 		end else begin
 			// if the packet is finished and there are no errors
 			// TODO: need to check if less stop bits are sent
-			if(rx_state == STOP && (rx_state_nxt == IDLE || rx_state_nxt == START)) begin
-				if(parity_err == 1'b0) load_rx_reg <= 1'b1;
-				else load_rx_reg <= 1'b0;
-			end
-			else load_rx_reg <= 1'b0;
+			if((rx_state == STOP && (rx_state_nxt == IDLE || rx_state_nxt == START)) && !rx_fifo_full) load_rx_reg <= 1'b1;
+			else 																	load_rx_reg <= 1'b0;
 		end
 	end
 
+
+
+	assign char_time = BR * (1 + data_lim + i_parity_en + (i_stop_bits ? 2 : 1));
+
+
+	/*------------------------------------------------------------------------------
+	--  					For timeout condition
+	------------------------------------------------------------------------------*/
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			timeout_counter<= '0;
+			rx_timeout <= 0;
+		end else begin
+			if(fifo_empty) begin
+				timeout_counter <= '0;
+				rx_timeout <= 1'b0;
+			end
+			else if(timeout_counter == (4*char_time - 1)) rx_timeout <= 1'b1;
+			else begin 
+				timeout_counter <= timeout_counter + 1'b1;
+				rx_timeout <= rx_timeout;
+			end
+		end
+	end
+
+
+	/*------------------------------------------------------------------------------
+	--  				For detecting overrun error
+	------------------------------------------------------------------------------*/
+	always_ff @(posedge clk or negedge resetn) begin : proc_
+		if(~resetn) begin
+			fifo_overrun <= 0;
+		end else begin
+			if(rx_state == START && rx_state_nxt==DATA && rx_fifo_full) fifo_overrun <= 1'b1;
+			else 														fifo_overrun <= 1'b0;
+		end
+	end
 
 
 

@@ -17,6 +17,7 @@ module shift_register #(
 	input dir						, // 0: LSB-first (UART convention) - new bit enters MSB, shifts down
 									  // 1: MSB-first - new bit enters LSB, shifts up
 	output [WIDTH-1:0] dout 		,
+	output logic shift_reg_empty 	,
 	output shift_out
 );
 	logic [WIDTH-1:0] 	data_out	;
@@ -26,18 +27,22 @@ module shift_register #(
 		if(~resetn) begin
 			data_out    <= DEFAULT_VAL;
 			shift_out_q <= '0;
+			shift_reg_empty <= 1'b1;
 		end
 		else if(reset_val == 1) begin
 			data_out    <= DEFAULT_VAL;
 			shift_out_q <= '0;
+			shift_reg_empty <= 1'b1;
 		end
 		else if(parallel_load) begin
 			data_out    <= parallel_in;
 			// first bit to present on shift_out, matching the direction
 			shift_out_q <= dir ? parallel_in[WIDTH-1] : parallel_in[0];
+			shift_reg_empty <= 1'b0;
 		end
 		else begin
 			if(wr_en) begin
+				shift_reg_empty <= 1'b0;
 				if(dir == 1'b0) begin
 					// LSB-first: new bit enters at MSB, shifts down toward LSB.
 					data_out    <= {din, data_out[WIDTH-1:1]};
@@ -53,6 +58,9 @@ module shift_register #(
 					// position after this shift (= current data_out[WIDTH-2])
 					shift_out_q <= data_out[WIDTH-2];
 				end
+			end
+			else begin
+				shift_reg_empty <= shift_reg_empty;
 			end
 		end
 	end
