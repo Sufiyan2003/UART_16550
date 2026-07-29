@@ -13,6 +13,7 @@ module uart_tx_ctrl (
 	input i_parity_en,
 	input i_stop_bits,
 	input i_even_parity,
+	input i_force_parity,
 	input thr_valid,
 	output logic [2:0] o_mux_sel,
 	output logic tx_shift_reg,

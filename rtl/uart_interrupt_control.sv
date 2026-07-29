@@ -18,6 +18,7 @@ module uart_interrupt_control (
 	input [3:0] i_modem_status_change,
 	input i_dma_end_of_reception,
 	input i_dma_end_of_transmission,
+	output logic write_interrupt,
 	output [3:0] interrupt_code
 	// to generate received data ready
 
@@ -45,7 +46,7 @@ module uart_interrupt_control (
 		DMA_TRANSMISSION_END	= 4'b1010
 	} interrupt_stat_code_e;
 	
-	interrupt_stat_code_e interrupt;
+	interrupt_stat_code_e interrupt, interrupt_q;
 
 	// this is to set the interrupt status
 	always_ff @(posedge clk or negedge resetn) begin
@@ -64,6 +65,28 @@ module uart_interrupt_control (
 			else if(i_dma_end_of_reception) 	interrupt = DMA_RECEPTION_END;
 			else if(i_dma_end_of_transmission) 	interrupt = DMA_TRANSMISSION_END;
 			else 								interrupt = NO_INTERRUPT;
+		end
+	end
+
+
+	/*------------------------------------------------------------------------------
+	--  				Write interrupt code into the csr
+	------------------------------------------------------------------------------*/
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			write_interrupt <= 0;
+		end else begin
+			if(interrupt_q != interrupt) 	write_interrupt <= 1'b1;
+			else 							write_interrupt <= 1'b0;
+		end
+	end
+
+	// to buffer the previous interrupt code
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			interrupt_q <= interrupt;
+		end else begin
+			interrupt_q <= interrupt;
 		end
 	end
 

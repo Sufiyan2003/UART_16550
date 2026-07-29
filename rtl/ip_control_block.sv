@@ -60,6 +60,7 @@ module ip_control_block (
 	input i_dma_tx_end,
 	input i_dma_rx_end,
 	input [2:0] i_intrp_id,
+	input i_write_intrpt_pulse,
 	input i_intr_stat
 
 );

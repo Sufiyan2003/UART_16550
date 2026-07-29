@@ -13,6 +13,7 @@ module uart_rx_ctrl (
 	input i_parity_en,
 	input i_stop_bits,
 	input i_even_parity,
+	input i_force_parity,
 	input fifo_empty,
 	input rx_fifo_full,
 	output logic rx_shift_reg,
@@ -20,6 +21,7 @@ module uart_rx_ctrl (
 	output logic parity_err,
 	output logic rx_timeout,
 	output logic fifo_overrun,
+	output logic o_BI,
 	output logic frame_err
 );
 
@@ -103,8 +105,8 @@ module uart_rx_ctrl (
 			PARITY 	: begin
 				if(rx_counter == BR-1) begin
 					clear_rx_counter = 1'b1;
-					if(rx_parity == rxd) parity_err = 1'b0;
-					else 								 parity_err = 1'b1;
+					if(rx_parity == rxd) 	parity_err = 1'b0;
+					else 				 	parity_err = 1'b1;
 					rx_state_nxt = STOP;
 				end
 				else begin
@@ -212,23 +214,29 @@ module uart_rx_ctrl (
 			rx_parity <= 0;
 		end else begin
 			if((rx_counter == BR-1) && ((rx_state == DATA) && (rx_state_nxt == DATA))) begin
-				if(i_even_parity) begin
-					if(rxd == 1'b1) begin
-						if(rx_parity == 0) rx_parity <= 1'b1;
-						else rx_parity <= 1'b0;
-					end
-					else begin
-						rx_parity <= rx_parity;
-					end 
+				if(i_force_parity) begin
+					if(i_even_parity) 	rx_parity <= 1'b1;
+					else 				rx_parity <= 1'b0;
 				end
 				else begin
-					if(rxd == 1'b1) begin
+					if(i_even_parity) begin
+						if(rxd == 1'b1) begin
 							if(rx_parity == 0) rx_parity <= 1'b1;
 							else rx_parity <= 1'b0;
 						end
 						else begin
 							rx_parity <= rx_parity;
 						end 
+					end
+					else begin
+						if(rxd == 1'b1) begin
+								if(rx_parity == 0) rx_parity <= 1'b1;
+								else rx_parity <= 1'b0;
+							end
+							else begin
+								rx_parity <= rx_parity;
+							end 
+						end
 					end
 				end
 			end
@@ -273,6 +281,28 @@ module uart_rx_ctrl (
 			end
 		end
 	end
+
+	/*------------------------------------------------------------------------------
+	--  						For break interrupt
+	------------------------------------------------------------------------------*/
+	logic bi_counter;
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			 o_BI <= 0;
+			 bi_counter <= '0;
+		end else begin
+			if(rxd == 0) begin
+				if(bi_counter >= char_time) o_BI <= 1'b1;
+				else 						o_BI <= 1'b0;
+			end
+			else  begin
+				bi_counter <= '0;
+				o_BI <= 1'b0;
+			end
+		end
+	end
+
+
 
 
 	/*------------------------------------------------------------------------------

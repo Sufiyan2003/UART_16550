@@ -100,6 +100,18 @@ module uart_16550 (
 		else 								uart_if.fifo_rx_triggered = 1'b0;
 	end
 
+	/*------------------------------------------------------------------------------
+	--  				Detecting an error in rx fifo
+	------------------------------------------------------------------------------*/
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			<= 0;
+		end else begin
+			 <= ;
+		end
+	end
+
+
 	// set the interface here, and the interface will then
 	sync_fifo #(
 		.DEPTH(16), 

@@ -59,6 +59,7 @@ module uart_16550_core (
 	logic reg_parity_err;
 	logic tx_load_fifo;
 	logic tx_pop_reg;
+	logic write_interrupt;
 
 	assign io_write = iow && ~iow_n;
 	assign io_read  = ior && ~ior_n;
@@ -79,6 +80,7 @@ module uart_16550_core (
 
 	logic [3:0] intrpt_code;
 	logic fifo_overrun;
+	logic o_BI;
 	/*------------------------------------------------------------------------------
 	--  					UART control block
 	------------------------------------------------------------------------------*/
@@ -115,10 +117,10 @@ module uart_16550_core (
 		.rx_fifo_in        		(uart_if.fifo_rx_out),
 		.fifo_sel          		(sel_fifo),
 		// LSR flags
-		.i_fifo_err				(),
+		.i_fifo_err				(uart_if.fifo_rx_error),
 		.i_transmit_empty		(thr_empty && (tx_shr_empty)),
 		.i_thr_write			(thr_write),
-		.i_break_intr			(1'b0),
+		.i_break_intr			(o_BI),
 		.i_framing_err			(o_frame_err),
 		.i_parity_err			(o_parity_err),
 		.i_overrun_err			(fifo_overrun),
@@ -129,6 +131,7 @@ module uart_16550_core (
 		.i_DSR					(~dsr_n),
 		.i_CTS					(~cts_n),
 		.i_trailing_edge_RI		(ri_n),
+		.i_write_intrpt_pulse	(write_interrupt),
 		// ISR flags
 		.i_fifos_en1			(1'b1),
 		.i_fifos_en2			(1'b1),
@@ -153,6 +156,7 @@ module uart_16550_core (
 		.i_modem_status_change    (mcr_val[3:0]),
 		.i_dma_end_of_reception   (),
 		.i_dma_end_of_transmission(),
+		.write_interrupt          (write_interrupt),
 		.interrupt_code           (intrpt_code)
 	);
 
@@ -180,6 +184,7 @@ module uart_16550_core (
 		.tx_shr_empty	(tx_shr_empty)				,
 		.txd         	(txd) 						,
 		.rx_fifo_full	(uart_if.fifo_rx_full)		,
+		.o_BI        	(o_BI),
 		.fifo_overrun	(fifo_overrun)
 	);
 

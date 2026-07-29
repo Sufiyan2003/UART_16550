@@ -25,6 +25,7 @@ module uart_rxtx_block (
 	output tx_shr_empty,
 	input rx_fifo_full, // only when fifo mode is enabled
 	output fifo_overrun,
+	output o_BI,
 	input thr_valid
 );
 
@@ -85,8 +86,14 @@ module uart_rxtx_block (
 	// TODO: add a mux to select between the stop bits (1) , the parity bit and the start bit (0)
 	always_comb begin
 		// if even parity
-		if(lcr_val[4]) parity_out = ~(^thr_val);
-		else 		   parity_out = ^thr_val;
+		if(lcr_val[5]) begin
+			if(lcr_val[4]) 	parity_out <= 1'b0;
+			else 			parity_out <= 1'b1;
+		end
+		else begin
+			if(lcr_val[4]) parity_out = ~(^thr_val); 
+			else 		   parity_out = ^thr_val;
+		end
 	end
 
 	// mux
@@ -109,22 +116,24 @@ module uart_rxtx_block (
 	------------------------------------------------------------------------------*/
 	uart_rx_ctrl uart_rx_control
 	(
-		.clk         (clk),
-		.resetn      (resetn),
-		.rxd         (rxd),
-		.i_data_bits (lcr_val[1:0]),
-		.i_parity_en (lcr_val[3]),
-		.i_stop_bits (lcr_val[2]),
-		.i_even_parity(lcr_val[4]),
-		.fifo_empty   (fifo_empty),
-		.BR          (BR),
-		.load_rx_reg  (load_rx_reg),
-		.frame_err    (frame_err),
-		.parity_err   (parity_err),
-		.rx_timeout   (rx_timeout),
-		.rx_fifo_full (rx_fifo_full),
-		.fifo_overrun (fifo_overrun),
-		.rx_shift_reg(rx_shift_reg)
+		.clk         	(clk),
+		.resetn      	(resetn),
+		.rxd         	(rxd),
+		.i_data_bits 	(lcr_val[1:0]),
+		.i_parity_en 	(lcr_val[3]),
+		.i_stop_bits 	(lcr_val[2]),
+		.i_even_parity	(lcr_val[4]),
+		.i_force_parity	(lcr_val[5]),
+		.fifo_empty   	(fifo_empty),
+		.BR          	(BR),
+		.load_rx_reg  	(load_rx_reg),
+		.frame_err    	(frame_err),
+		.parity_err   	(parity_err),
+		.rx_timeout   	(rx_timeout),
+		.rx_fifo_full 	(rx_fifo_full),
+		.fifo_overrun 	(fifo_overrun),
+		.o_BI         	(o_BI),
+		.rx_shift_reg	(rx_shift_reg)
 	);
 	
 
@@ -135,6 +144,7 @@ module uart_rxtx_block (
 		.BR           (BR),
 		.i_even_parity(lcr_val[4]),
 		.i_parity_en  (lcr_val[3]),
+		.i_force_parity(lcr_val[5]),
 		.i_data_bits  (lcr_val[1:0]),
 		.i_stop_bits  (lcr_val[2]),
 		.thr_valid    (thr_valid),
