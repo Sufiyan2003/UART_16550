@@ -33,13 +33,16 @@ module uart_16550 (
 	output out2_n					,
 	output txd
 );
+	logic chip_select;
 
 	logic rxd_q;
 	logic [7:0] mcr_val;
 	logic [7:0] fcr_val;
 	logic [3:0] rcvr_count;
 	logic [3:0] data_bytes_rcvd;
+	logic [3:0] num_err_entries;
 
+	logic push_with_err, pop_with_err;
 	// uart connection with the internal fifos
 	uart_interface uart_if(clk, resetn);
 
@@ -48,9 +51,7 @@ module uart_16550 (
 		.clk					(clk),
 		.resetn					(resetn),
 		.data_in				(data_in),
-		.cs1					(cs1),
-		.cs2					(cs2),
-		.cs_n					(cs_n),
+		.chip_select			(chip_select),
 		.ior 					(ior),
 		.ior_n					(ior_n),
 		.iow 					(iow),
@@ -85,6 +86,8 @@ module uart_16550 (
 	/*------------------------------------------------------------------------------
 	--  		Rx and Tx fifos connected with the fifo uart interface
 	------------------------------------------------------------------------------*/
+	assign push_with_err 	= uart_if.fifo_rx_push && !uart_if.fifo_rx_full && |uart_if.fifo_rx_in[10:8];
+	assign pop_with_err 	= uart_if.fifo_rx_pop && !uart_if.fifo_rx_empty && |uart_if.fifo_rx_out[10:8];
 
 	always_comb begin
 		case (fcr_val[7:6])
@@ -105,9 +108,14 @@ module uart_16550 (
 	------------------------------------------------------------------------------*/
 	always_ff @(posedge clk or negedge resetn) begin
 		if(~resetn) begin
-			<= 0;
+			num_err_entries <= '0;
 		end else begin
-			 <= ;
+			// on push high check whether that byte raised PE, FE or BI and or a one into it
+			case ({push_with_err, pop_with_err})
+				2'b10: num_err_entries <= num_err_entries + 1'b1;
+				2'b01: num_err_entries <= num_err_entries - 1'b1;
+				default : num_err_entries <= num_err_entries;
+			endcase
 		end
 	end
 
@@ -117,14 +125,14 @@ module uart_16550 (
 		.DEPTH(16), 
 		.DWIDTH(11)
 	) RHR_fifo(
-		.clk  				(clk)						,
-		.rstn 				(resetn)					,
-		.wr_en				(uart_if.fifo_rx_push)		,
-		.rd_en				(uart_if.fifo_rx_pop)		,
-		.din  				(uart_if.fifo_rx_in)		,
-		.dout 				(uart_if.fifo_rx_out)		,
-		.empty				(uart_if.fifo_rx_empty)		,
-		.full 				(uart_if.fifo_rx_full)		,
+		.clk  				(clk)								,
+		.rstn 				(resetn && ~uart_if.fifo_rx_reset)	,
+		.wr_en				(uart_if.fifo_rx_push)				,
+		.rd_en				(uart_if.fifo_rx_pop)				,
+		.din  				(uart_if.fifo_rx_in)				,
+		.dout 				(uart_if.fifo_rx_out)				,
+		.empty				(uart_if.fifo_rx_empty)				,
+		.full 				(uart_if.fifo_rx_full)				,
 		.o_occupancy_count	(data_bytes_rcvd)
 	);
 	
@@ -132,13 +140,13 @@ module uart_16550 (
 		.DEPTH(16), 
 		.DWIDTH(8)
 	) THR_fifo(
-		.clk  			(clk)						,
-		.rstn 			(resetn)					,
-		.wr_en			(uart_if.fifo_tx_push)		,
-		.rd_en			(uart_if.fifo_tx_pop)		,
-		.din  			(uart_if.fifo_tx_in)		,
-		.dout 			(uart_if.fifo_tx_out)		,
-		.empty			(uart_if.fifo_tx_empty)		,
+		.clk  			(clk)								,
+		.rstn 			(resetn && ~uart_if.fifo_tx_reset)	,
+		.wr_en			(uart_if.fifo_tx_push)				,
+		.rd_en			(uart_if.fifo_tx_pop)				,
+		.din  			(uart_if.fifo_tx_in)				,
+		.dout 			(uart_if.fifo_tx_out)				,
+		.empty			(uart_if.fifo_tx_empty)				,
 		.full 			(uart_if.fifo_tx_full)
 	);
 
@@ -150,7 +158,12 @@ module uart_16550 (
 	else 			rxd_q = rxd;
 	end
 
-	assign uart_if.fifo_rx_trig_level = fcr_val[7:6]; 
+
+	assign chip_select = cs1 && cs2 && ~cs_n;
+
+
+	assign uart_if.fifo_rx_trig_level 	= fcr_val[7:6]; 
+	assign uart_if.fifo_rx_error 		= num_err_entries != 0;
 
 endmodule
 

@@ -13,7 +13,7 @@ module ip_control_block (
 	input resetn,
 	input [7:0] data_in,
 	input [2:0] add,
-	input cs1,cs2,cs_n,
+	input chip_select,
 	input ior,
 	input iow,
 	input load_rhr,
@@ -95,6 +95,8 @@ module ip_control_block (
 	logic msr_read;
 	logic del_cts, del_dsr, del_cd,trail_ri;
 
+	logic deassert_reset;
+	logic [7:0] fcr_in;
 
 	/*------------------------------------------------------------------------------
 	--  							Decode stage
@@ -104,7 +106,7 @@ module ip_control_block (
 		if(~resetn) begin
 			data_out <= '0;
 		end else begin
-			if(ior) begin
+			if(ior && chip_select) begin
 				case (add)
 					RHR_REGISTER: begin
 						if(lcr_val[7]) 	data_out <= dll_val;
@@ -127,6 +129,9 @@ module ip_control_block (
 					SPR_REGISTER: data_out <= spr_val;
 				endcase
 			end
+			else begin
+				data_out <= data_out;
+			end
 		end
 	end
 
@@ -140,7 +145,7 @@ module ip_control_block (
 		if(~resetn) begin
 			outen <= '0;
 		end else begin
-			if(ior) begin
+			if(ior && chip_select) begin
 				outen <= 1'b1;
 			end
 		end
@@ -159,7 +164,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (RHR_IN),
 		.dout  (rhr_val),
-		.wr_en (load_rhr)
+		.wr_en (load_rhr && chip_select)
 	);
 
 	//W
@@ -169,7 +174,7 @@ module ip_control_block (
 		.clk   		(clk)						,
 		.resetn		(resetn)					,
 		.din   		(data_in)					,
-		.wr_en 		((add == THR_REGISTER) && iow && (lcr_val[7] == 0))		,
+		.wr_en 		((add == THR_REGISTER) && iow && (lcr_val[7] == 0) && chip_select)		,
 		.dout  		(thr_val)
 	);
 
@@ -194,7 +199,7 @@ module ip_control_block (
 		.clk   (clk),
 		.resetn(resetn),
 		.din   (data_in),
-		.wr_en ((add == IER_REGISTER) && iow),
+		.wr_en ((add == IER_REGISTER) && iow && chip_select),
 		.dout  (ier_val)
 	);
 
@@ -214,7 +219,7 @@ module ip_control_block (
 		.clk   (clk),
 		.resetn(resetn),
 		.din   (i_fifos_en1),
-		.wr_en (),
+		.wr_en (chip_select),
 		.dout  (o_fifos_en1)
 	);
 
@@ -225,7 +230,7 @@ module ip_control_block (
 		.clk   (clk),
 		.resetn(resetn),
 		.din   (i_fifos_en2),
-		.wr_en (),
+		.wr_en (chip_select),
 		.dout  (o_fifos_en2)
 	);
 
@@ -237,7 +242,7 @@ module ip_control_block (
 		.clk   (clk),
 		.resetn(resetn),
 		.din   (i_dma_tx_end),
-		.wr_en (),
+		.wr_en (chip_select),
 		.dout  (dma_tx_end)
 	);
 
@@ -250,7 +255,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_dma_rx_end),
 		.dout  (dma_rx_end),
-		.wr_en ()
+		.wr_en (chip_select)
 	);
 
 	register #(
@@ -261,7 +266,7 @@ module ip_control_block (
 		.clk   (clk),
 		.resetn(resetn),
 		.din   (i_intrp_id),
-		.wr_en (),
+		.wr_en (i_write_intrpt_pulse && chip_select),
 		.dout  (intrpt_id_code)
 	);
 
@@ -274,7 +279,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_intr_stat),
 		.dout  (intrpt_status),
-		.wr_en ()  				// write this whenever any of the interrupts go
+		.wr_en (i_write_intrpt_pulse && chip_select)  				// write this whenever any of the interrupts go
 	);
 
 	// this will be one full register
@@ -288,12 +293,35 @@ module ip_control_block (
 	register #(
 		.DEFAULT_VAL('0)
 	) FCR(
-		.clk   (clk)						,
-		.resetn(resetn)						,
-		.din   (data_in)					,
-		.wr_en ((add == FCR_REGISTER) && iow)		,
+		.clk   (clk)																	,
+		.resetn(resetn)																	,
+		.din   (fcr_in)																,
+		.wr_en (((add == FCR_REGISTER) && iow && chip_select) || deassert_reset)		,
 		.dout  (fcr_val)
 	);
+
+
+	/*------------------------------------------------------------------------------
+	--  		reset fifo bit must go back to 0 after being set
+	------------------------------------------------------------------------------*/
+	// tp generate a pulse
+	always_ff @(posedge clk or negedge resetn) begin 
+		if(~resetn) begin
+			deassert_reset <= 0;
+		end else begin
+			// if either of them is one then must first write new fcr_val into this register
+			if((|fcr_val[2:1]) == 1'b1) deassert_reset <= 1'b1;
+			else deassert_reset <= 1'b0;
+		end
+	end
+
+	// select input into fcr
+	always_comb begin
+		if((|fcr_val[2:1]) == 1'b1) fcr_in = {fcr_val[7:5], 2'b00, fcr_val[0]};
+		else 						fcr_in = data_in;
+	end
+
+
 
 	register #(
 		.DEFAULT_VAL('0)
@@ -301,7 +329,7 @@ module ip_control_block (
 		.clk   (clk)						,
 		.resetn(resetn)						,
 		.din   (data_in)					,
-		.wr_en ((add==LCR_REGISTER) && iow)		,
+		.wr_en ((add==LCR_REGISTER) && iow && chip_select)		,
 		.dout  (lcr_val)
 	);
 
@@ -311,7 +339,7 @@ module ip_control_block (
 		.clk   (clk)						,
 		.resetn(resetn)						,
 		.din   (data_in)					,
-		.wr_en ((add==MCR_REGISTER) && iow)		,
+		.wr_en ((add==MCR_REGISTER) && iow && chip_select)		,
 		.dout  (mcr_val)
 	);
 
@@ -327,7 +355,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_fifo_err),
 		.dout  (fifo_dat_err),
-		.wr_en ()
+		.wr_en (chip_select)
 	);
 
 	register #(
@@ -338,7 +366,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_transmit_empty),
 		.dout  (transmit_empty),
-		.wr_en ()
+		.wr_en (chip_select && 1'b1)
 	);
 
 	register #(
@@ -349,7 +377,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (~thr_valid),
 		.dout  (thr_empty_bit),
-		.wr_en (1'b1) // write needs to be a pulse so that we can write this flag
+		.wr_en (1'b1 && chip_select) // write needs to be a pulse so that we can write this flag
 	);
 
 	register #(
@@ -360,7 +388,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_break_intr),
 		.dout  (break_intrpt),
-		.wr_en (1'b1)
+		.wr_en (1'b1 && chip_select)
 	);
 
 
@@ -372,7 +400,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_framing_err),
 		.dout  (framing_err),
-		.wr_en (1'b1)
+		.wr_en (1'b1 && chip_select)
 	);
 
 	register #(
@@ -383,7 +411,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_parity_err),
 		.dout  (parity_err),
-		.wr_en (1'b1)
+		.wr_en (1'b1 && chip_select)
 	);
 
 	register #(
@@ -394,7 +422,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_overrun_err),
 		.dout  (overrun_err),
-		.wr_en (1'b1)
+		.wr_en (1'b1 && chip_select)
 	);
 
 
@@ -406,7 +434,7 @@ module ip_control_block (
 		.resetn		(resetn),
 		.din   		(i_data_ready),
 		.dout  		(data_ready),
-		.wr_en 		(load_rhr || (ior && add == '0 && lcr_val[7])) // assert when rhr ready and deassert when ready 
+		.wr_en 		(load_rhr || (ior && add == '0 && lcr_val[7]) && chip_select) // assert when rhr ready and deassert when ready 
 	);
 
 	always_comb begin
@@ -421,7 +449,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_CD),
 		.dout  (CD),
-		.wr_en ()
+		.wr_en (iow && chip_select)
 	);
 
 	register #(
@@ -432,7 +460,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_RI),
 		.dout  (RI),
-		.wr_en ()
+		.wr_en (iow && chip_select)
 	);
 
 	register #(
@@ -443,7 +471,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (i_DSR),
 		.dout  (DSR),
-		.wr_en ()
+		.wr_en (iow && chip_select)
 	);
 
 	register #(
@@ -454,7 +482,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (cts_changed),
 		.dout  (CTS),
-		.wr_en ()
+		.wr_en (iow && chip_select)
 	);
 
 
@@ -466,7 +494,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (del_cd),
 		.dout  (delta_CD),
-		.wr_en ()
+		.wr_en (1'b1)
 	);
 
 	register #(
@@ -477,7 +505,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (ri_trailing_edge_changed),
 		.dout  (trailing_edge_RI),
-		.wr_en ()
+		.wr_en (1'b1)
 	);
 
 	register #(
@@ -488,7 +516,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (del_dsr),
 		.dout  (delta_DSR),
-		.wr_en ()
+		.wr_en (1'b1)
 	);
 
 
@@ -500,7 +528,7 @@ module ip_control_block (
 		.resetn(resetn),
 		.din   (del_cts),
 		.dout  (delta_CTS),
-		.wr_en ()
+		.wr_en (1'b1)
 	);
 
 	always_comb begin
@@ -515,7 +543,7 @@ module ip_control_block (
 		.clk   (clk)									,
 		.resetn(resetn)									,
 		.din   (data_in)								,
-		.wr_en ((add == 3'b111) && iow)					,
+		.wr_en ((add == 3'b111) && iow && chip_select)					,
 		.dout  (spr_val)
 	);
 
@@ -525,7 +553,7 @@ module ip_control_block (
 		.clk   (clk)									,
 		.resetn(resetn)									,
 		.din   (data_in)								,
-		.wr_en ((add == '0) && iow && lcr_val[7])		,
+		.wr_en ((add == '0) && iow && lcr_val[7] && chip_select)		,
 		.dout  (dll_val)
 	);
 	
@@ -535,7 +563,7 @@ module ip_control_block (
 		.clk   (clk)									,
 		.resetn(resetn)									,
 		.din   (data_in)								,
-		.wr_en ((add == 3'b001) && iow && lcr_val[7])	,
+		.wr_en ((add == 3'b001) && iow && lcr_val[7] && chip_select)	,
 		.dout  (dlm_val)
 	);
 	
@@ -545,7 +573,7 @@ module ip_control_block (
 		.clk   (clk)									,
 		.resetn(resetn)									,
 		.din   (data_in)								,
-		.wr_en ((add==3'b101) && iow && lcr_val[7])		,
+		.wr_en ((add==3'b101) && iow && lcr_val[7] && chip_select)		,
 		.dout  (psd_val)
 
 	);

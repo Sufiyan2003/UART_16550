@@ -200,6 +200,9 @@ module tb;
   	// driving the differential signals	
   	assign ior_n 	= ~ior;
   	assign iow_n 	= ~iow;
+  	assign cs1 = 1'b1;
+  	assign cs2 = 1'b1;
+  	assign cs_n = ~(cs1 && cs2);
   	// assign rxrdy_n 	= ~rxrdy;
   	// assign txrdy_n  = ~txrdy;
 

@@ -9,9 +9,7 @@ module uart_16550_core (
 	input clk						,
 	input resetn					,
 	input [7:0] data_in				,
-	input cs1						,
-	input cs2						,
-	input cs_n						,
+	input chip_select				,
 	input ior,ior_n					,
 	input iow,iow_n					,
 	input [2:0] add					,
@@ -81,6 +79,9 @@ module uart_16550_core (
 	logic [3:0] intrpt_code;
 	logic fifo_overrun;
 	logic o_BI;
+	logic dma_tx_event;
+	logic dma_rx_event;
+
 	/*------------------------------------------------------------------------------
 	--  					UART control block
 	------------------------------------------------------------------------------*/
@@ -92,9 +93,7 @@ module uart_16550_core (
 		.resetn  				(resetn),
 		.data_in 				(data_in),
 		.add     				(add),
-		.cs1     				(cs1),
-		.cs2     				(cs2),
-		.cs_n    				(cs_n),
+		.chip_select         	(chip_select),
 		.ior     				(io_read),
 		.iow     				(io_write),
 		.data_out				(data_out),
@@ -136,7 +135,7 @@ module uart_16550_core (
 		.i_fifos_en1			(1'b1),
 		.i_fifos_en2			(1'b1),
 		.i_dma_tx_end			(),
-		.i_dma_rx_end			(),
+		.i_dma_rx_end			(dma_rx_end),
 		.i_intrp_id				(intrpt_code[3:1]),
 		.i_intr_stat			(intrpt_code[0])
 	);
@@ -263,5 +262,42 @@ module uart_16550_core (
 		end
 	end
 
+	/*------------------------------------------------------------------------------
+	--  						Fifo Rx Tx resets
+	------------------------------------------------------------------------------*/
+	always_comb begin
+		uart_if.fifo_rx_reset = fcr_val[1];
+		uart_if.fifo_tx_reset = fcr_val[2];
+	end
+
+	/*------------------------------------------------------------------------------
+	--  						DMA ready controls
+	------------------------------------------------------------------------------*/
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			dma_rx_event <= 0;
+		end else begin
+			if(uart_if.fifo_rx_triggered && !uart_if.fifo_rx_empty) dma_rx_event <= 1'b1; // event is now in progress
+			else if(uart_if.fifo_rx_empty) dma_rx_event <= 1'b0;
+			else dma_rx_event <= dma_rx_event;
+		end
+	end
+
+
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			dma_tx_event <= 0;
+		end else begin
+			if(uart_if.fifo_tx_empty) dma_tx_event <= 1'b1;
+			else if(uart_if.fifo_tx_full) dma_tx_event <= 1'b0;
+			else dma_tx_event <= dma_tx_event;
+		end
+	end
+
+	assign rxrdy = dma_rx_event;
+	assign txrdy = dma_tx_event;
+
+	assign rxrdy_n = ~rxrdy;
+	assign txrdy_n = ~txrdy;
 
 endmodule
