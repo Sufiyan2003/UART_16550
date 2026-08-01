@@ -81,6 +81,8 @@ module uart_16550_core (
 	logic o_BI;
 	logic dma_tx_event;
 	logic dma_rx_event;
+	logic dma_single_rx_event;
+	logic dma_single_tx_event;
 
 	/*------------------------------------------------------------------------------
 	--  					UART control block
@@ -134,8 +136,8 @@ module uart_16550_core (
 		// ISR flags
 		.i_fifos_en1			(1'b1),
 		.i_fifos_en2			(1'b1),
-		.i_dma_tx_end			(),
-		.i_dma_rx_end			(dma_rx_end),
+		.i_dma_tx_end			(dma_tx_event),
+		.i_dma_rx_end			(dma_rx_event),
 		.i_intrp_id				(intrpt_code[3:1]),
 		.i_intr_stat			(intrpt_code[0])
 	);
@@ -153,14 +155,14 @@ module uart_16550_core (
 		.i_reception_timeout      (rx_timeout),
 		.i_thr_empty              (lsr_val[5]),				// needs to
 		.i_modem_status_change    (mcr_val[3:0]),
-		.i_dma_end_of_reception   (),
-		.i_dma_end_of_transmission(),
+		.i_dma_end_of_reception   (dma_rx_event),
+		.i_dma_end_of_transmission(dma_tx_event),
 		.write_interrupt          (write_interrupt),
 		.interrupt_code           (intrpt_code)
 	);
 
-
-
+	assign irq = intrpt_code == 4'b0001 ? 1'b0 : 1'b1;
+	assign irq_n = ~irq;
 
 	// framing errors might come from rxtx control or it can come from the fifo, rename it to act as an output of a mux
 	uart_rxtx_block uart_rxtx_blk(
@@ -271,7 +273,7 @@ module uart_16550_core (
 	end
 
 	/*------------------------------------------------------------------------------
-	--  						DMA ready controls
+	--  				DMA ready controls (for dma mode 1)
 	------------------------------------------------------------------------------*/
 	always_ff @(posedge clk or negedge resetn) begin
 		if(~resetn) begin
@@ -293,6 +295,27 @@ module uart_16550_core (
 			else dma_tx_event <= dma_tx_event;
 		end
 	end
+
+	/*------------------------------------------------------------------------------
+	--  				DMA READY controls (for mode 0)
+	------------------------------------------------------------------------------*/
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			dma_single_rx_event <= 0;
+		end else begin
+			if(load_rhr) dma_single_rx_event <= 1'b1;
+			else 		 dma_single_rx_event <= 1'b0;
+		end
+	end
+
+	always_ff @(posedge clk or negedge resetn) begin
+		if(~resetn) begin
+			dma_single_tx_event <= 1'b0;
+		end else begin
+			dma_single_tx_event <= reg_thr_valid;
+		end
+	end
+
 
 	assign rxrdy = dma_rx_event;
 	assign txrdy = dma_tx_event;
