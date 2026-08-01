@@ -58,6 +58,7 @@ module uart_16550_core (
 	logic tx_load_fifo;
 	logic tx_pop_reg;
 	logic write_interrupt;
+	logic thr_write;
 
 	assign io_write = iow && ~iow_n;
 	assign io_read  = ior && ~ior_n;
@@ -202,36 +203,48 @@ module uart_16550_core (
 	// block to assign load_rhr to valid destination
 	// load rhr fifo is basically fifo_rx_push
 	always_comb begin
-		if(sel_fifo) begin
-			uart_if.fifo_rx_push 	= load_rhr;
-			// [BI, FE, PE, DATA] (Break indication ignored for now)
-			uart_if.fifo_rx_in 		= {1'b0, rx_fifo_frame_err, rx_fifo_parity_err, rhr_val};
-			// data in given to fifo_tx_in, write to occur via control block
-			uart_if.fifo_tx_in 		= data_in;
-			uart_if.fifo_tx_push 	= tx_load_fifo;
-			load_rhr_reg 			= '0;
-			o_frame_err				= rx_fifo_frame_err;
-			o_parity_err 			= rx_fifo_parity_err;
-			thr_val 				= uart_if.fifo_tx_out[7:0];
-			thr_valid 				= ~uart_if.fifo_tx_empty;
-			uart_if.fifo_tx_pop 	= tx_pop_reg; 
-			rhr_reg_ready			= '0;
-			rhr_fifo_ready  		= uart_if.fifo_rx_triggered;
-			thr_empty 				= uart_if.fifo_tx_empty;
-		end
-		else begin
-			load_rhr_reg 			= load_rhr;
-			uart_if.fifo_rx_push 	= 0;
-			uart_if.fifo_tx_in 		= '0;
-			o_frame_err 			= reg_frame_err;
-			o_parity_err 			= reg_parity_err;
-			thr_val 				= reg_thr_val;
-			thr_valid 				= reg_thr_valid;
-			rhr_reg_ready			= load_rhr;
-			rhr_fifo_ready			= '0;
-			thr_empty 				= reg_thr_empty;
-		end
-	
+	    // safe defaults - prevents latch inference
+	    uart_if.fifo_rx_push  = '0;
+	    uart_if.fifo_rx_in    = '0;
+	    uart_if.fifo_tx_in    = '0;
+	    uart_if.fifo_tx_push  = '0;
+	    uart_if.fifo_tx_pop   = '0;
+	    load_rhr_reg          = '0;
+	    o_frame_err           = '0;
+	    o_parity_err          = '0;
+	    thr_val               = '0;
+	    thr_valid             = '0;
+	    rhr_reg_ready         = '0;
+	    rhr_fifo_ready        = '0;
+	    thr_empty             = '0;
+
+	    if (sel_fifo) begin
+	        uart_if.fifo_rx_push  = load_rhr;
+	        uart_if.fifo_rx_in    = {1'b0, rx_fifo_frame_err, rx_fifo_parity_err, rhr_val};
+	        uart_if.fifo_tx_in    = data_in;
+	        uart_if.fifo_tx_push  = tx_load_fifo;
+	        load_rhr_reg          = '0;
+	        o_frame_err           = rx_fifo_frame_err;
+	        o_parity_err          = rx_fifo_parity_err;
+	        thr_val               = uart_if.fifo_tx_out[7:0];
+	        thr_valid             = ~uart_if.fifo_tx_empty;
+	        uart_if.fifo_tx_pop   = tx_pop_reg;
+	        rhr_reg_ready         = '0;
+	        rhr_fifo_ready        = uart_if.fifo_rx_triggered;
+	        thr_empty             = uart_if.fifo_tx_empty;
+	    end
+	    else begin
+	        load_rhr_reg          = load_rhr;
+	        uart_if.fifo_rx_push  = 0;
+	        uart_if.fifo_tx_in    = '0;
+	        o_frame_err           = reg_frame_err;
+	        o_parity_err          = reg_parity_err;
+	        thr_val               = reg_thr_val;
+	        thr_valid             = reg_thr_valid;
+	        rhr_reg_ready         = load_rhr;
+	        rhr_fifo_ready        = '0;
+	        thr_empty             = reg_thr_empty;
+	    end
 	end
 
 	always_ff @(posedge clk or negedge resetn) begin

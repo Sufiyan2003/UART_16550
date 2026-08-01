@@ -87,8 +87,8 @@ module uart_rxtx_block (
 	always_comb begin
 		// if even parity
 		if(lcr_val[5]) begin
-			if(lcr_val[4]) 	parity_out <= 1'b0;
-			else 			parity_out <= 1'b1;
+			if(lcr_val[4]) 	parity_out = 1'b0;
+			else 			parity_out = 1'b1;
 		end
 		else begin
 			if(lcr_val[4]) parity_out = ~(^thr_val); 

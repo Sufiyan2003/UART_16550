@@ -57,14 +57,14 @@ module uart_interrupt_control (
 		end else begin
 			// write logic for each type of interrupt
 			// simple if else statement to determinethe interrupt identification code
-			if(i_frame_err || i_parity_err) 	interrupt = RECEIVER_LINE_STATUS;
-			else if(i_data_ready)           	interrupt = RECEIVER_DATA_READY;
-			else if(i_reception_timeout)    	interrupt = RECEPTION_TIMEOUT;
-			else if(i_thr_empty)            	interrupt = TRANSMITTER_EMPTY;
-			else if(modem_st_change) 			interrupt = MODEM_STATUS;
-			else if(i_dma_end_of_reception) 	interrupt = DMA_RECEPTION_END;
-			else if(i_dma_end_of_transmission) 	interrupt = DMA_TRANSMISSION_END;
-			else 								interrupt = NO_INTERRUPT;
+			if(i_frame_err || i_parity_err) 	interrupt <= RECEIVER_LINE_STATUS;
+			else if(i_data_ready)           	interrupt <= RECEIVER_DATA_READY;
+			else if(i_reception_timeout)    	interrupt <= RECEPTION_TIMEOUT;
+			else if(i_thr_empty)            	interrupt <= TRANSMITTER_EMPTY;
+			else if(modem_st_change) 			interrupt <= MODEM_STATUS;
+			else if(i_dma_end_of_reception) 	interrupt <= DMA_RECEPTION_END;
+			else if(i_dma_end_of_transmission) 	interrupt <= DMA_TRANSMISSION_END;
+			else 								interrupt <= NO_INTERRUPT;
 		end
 	end
 

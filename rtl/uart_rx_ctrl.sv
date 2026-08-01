@@ -273,7 +273,7 @@ module uart_rx_ctrl (
 				timeout_counter <= '0;
 				rx_timeout <= 1'b0;
 			end
-			else if(load_rx_reg == 1'b1) timeout_counter <= 1'b0;
+			else if(load_rx_reg == 1'b1) timeout_counter <= '0;
 			else if(timeout_counter == (4*char_time - 1)) rx_timeout <= 1'b1;
 			else begin 
 				timeout_counter <= timeout_counter + 1'b1;

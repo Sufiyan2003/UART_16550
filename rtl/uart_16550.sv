@@ -39,7 +39,7 @@ module uart_16550 (
 	logic [7:0] mcr_val;
 	logic [7:0] fcr_val;
 	logic [3:0] rcvr_count;
-	logic [3:0] data_bytes_rcvd;
+	logic [4:0] data_bytes_rcvd;
 	logic [3:0] num_err_entries;
 
 	logic push_with_err, pop_with_err;

@@ -121,10 +121,10 @@ module uart_tx_ctrl (
 			thr_write <= 0;
 		end else begin
 			// toggle bit when a byte is unloaded from thr (STOP -> IDLE)
-			if(tx_state == STOP && tx_state_nxt==IDLE) thr_write = 1'b1;
+			if(tx_state == STOP && tx_state_nxt==IDLE) thr_write <= 1'b1;
 			// toggle bit when a byte is loaded to thr (IDLE -> START)
-			else if(tx_state == IDLE && tx_state_nxt == START) thr_write = 1'b1;
-			else thr_write = 1'b0;
+			else if(tx_state == IDLE && tx_state_nxt == START) thr_write <= 1'b1;
+			else thr_write <= 1'b0;
 		end
 	end
 
