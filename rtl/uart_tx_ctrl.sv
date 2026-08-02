@@ -12,8 +12,6 @@ module uart_tx_ctrl (
 	input [1:0] i_data_bits,
 	input i_parity_en,
 	input i_stop_bits,
-	input i_even_parity,
-	input i_force_parity,
 	input thr_valid,
 	output logic [2:0] o_mux_sel,
 	output logic tx_shift_reg,
@@ -23,11 +21,8 @@ module uart_tx_ctrl (
 
 
 	logic [15:0] tx_counter;
-	logic start_tx_counter;
 	logic [3:0] data_lim;
 	logic clear_tx_counter;
-	logic tx_d;
-	logic tx_parity;
 
 
 	typedef enum  {IDLE, START, DATA, PARITY, STOP} uart_st;
