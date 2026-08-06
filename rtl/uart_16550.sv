@@ -36,6 +36,8 @@ module uart_16550 (
 	logic chip_select;
 
 	logic rxd_q;
+	logic cts_n_q, dsr_n_q;
+	logic ri_n_q, cd_n_q;
 	logic [7:0] mcr_val;
 	logic [7:0] fcr_val;
 	logic [3:0] rcvr_count;
@@ -61,10 +63,10 @@ module uart_16550 (
 		.add					(add),
 		.dma_rxend 				(dma_rxend),
 		.dma_txend				(dma_txend),
-		.cts_n					(cts_n),
-		.dsr_n					(dsr_n),
-		.ri_n					(ri_n),
-		.cd_n					(cd_n),
+		.cts_n					(cts_n_q),
+		.dsr_n					(dsr_n_q),
+		.ri_n					(ri_n_q),
+		.cd_n					(cd_n_q),
 		.rxd					(rxd_q),
 		.uart_if 				(uart_if),
 		.data_out				(data_out),
@@ -167,10 +169,22 @@ module uart_16550 (
 
 
 
-	// TODO: add the loopback block here
+	// TODO: connect the cts and other such signals to 
 	always_comb begin
-		if(mcr_val[4]) 	rxd_q = txd;
-	else 			rxd_q = rxd;
+		if(mcr_val[4]) begin 
+			rxd_q = txd;
+			cts_n_q = rts_n;
+			dsr_n_q = dtr_n; 
+			ri_n_q = out1_n;
+			cd_n_q = out2_n;
+		end
+		else begin 	
+			rxd_q = rxd;
+			cts_n_q = cts_n;
+			dsr_n_q = dsr_n;
+			ri_n_q = ri_n;
+			cd_n_q = cd_n;
+		end
 	end
 
 
