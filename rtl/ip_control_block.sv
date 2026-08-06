@@ -126,7 +126,9 @@ module ip_control_block (
 						else 			data_out <= lsr_val;
 					end
 					MSR_REGISTER: data_out <= msr_val;
-					SPR_REGISTER: data_out <= spr_val;
+					`ifdef UART_IMPLEMENT_SCRATCHPAD
+						SPR_REGISTER: data_out <= spr_val;
+					`endif
 				endcase
 			end
 			else begin
@@ -213,7 +215,11 @@ module ip_control_block (
 
 	// set individual flags to set the values of ISR register
 	register #(
+		`ifdef UART_IMPLEMENT_FIFO
 		.DEFAULT_VAL(1),
+		`else
+		.DEFAULT_VAL(0),
+		`endif
 		.WIDTH      (1)
 	) fifos_en1(
 		.clk   (clk),
@@ -224,7 +230,11 @@ module ip_control_block (
 	);
 
 	register #(
+		`ifdef UART_IMPLEMENT_FIFO
 		.DEFAULT_VAL(1),
+		`else
+		.DEFAULT_VAL(0),
+		`endif
 		.WIDTH      (1)
 	) fifos_en2_flag(
 		.clk   (clk),
@@ -536,16 +546,28 @@ module ip_control_block (
 	end
 
 
-
-	register #(
-		.DEFAULT_VAL('0)
-	) SPR(
-		.clk   (clk)									,
-		.resetn(resetn)									,
-		.din   (data_in)								,
-		.wr_en ((add == 3'b111) && iow && chip_select)					,
-		.dout  (spr_val)
-	);
+	`ifdef UART_IMPLEMENT_SCRATCHPAD
+		register #(
+			.DEFAULT_VAL('0)
+		) SPR(
+			.clk   (clk)									,
+			.resetn(resetn)									,
+			.din   (data_in)								,
+			.wr_en ((add == 3'b111) && iow && chip_select)					,
+			.dout  (spr_val)
+		);
+	`else
+		// register is reserved
+		register #(
+			.DEFAULT_VAL('0)
+		) rsvd(
+			.clk   (clk),
+			.resetn(resetn),
+			.wr_en (),
+			.din   (),
+			.dout  ()
+		);
+	`endif
 
 	register #(
 		.DEFAULT_VAL(8'h01)

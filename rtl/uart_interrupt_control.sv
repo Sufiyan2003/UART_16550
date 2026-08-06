@@ -101,6 +101,11 @@ module uart_interrupt_control (
 		end
 	end
 
+	// if mcr3 is masked dont generate an interrupt code
+	`ifdef UART_USE_MCR3_MASK
+	assign interrupt_code = (interrupt[3] == 1'b1) ? NO_INTERRUPT : interrupt;
+	`else
 	assign interrupt_code = interrupt;
+	`endif
 
 endmodule : uart_interrupt_control
