@@ -22,7 +22,8 @@ module uart_16550_core (
 	uart_interface.rx uart_if 		,
 	output [7:0] data_out			,
 	output outen					,
-	output irq,irq_n				,
+	output logic irq 				,
+	output irq_n					,
 	output rxrdy, rxrdy_n			,
 	output txrdy, txrdy_n			,
 	output rts_n					,
@@ -316,11 +317,20 @@ module uart_16550_core (
 		end
 	end
 
+	/*------------------------------------------------------------------------------
+	--  					Generate interrupt line
+	------------------------------------------------------------------------------*/
+	always_comb begin
+		// means there is an interrupt
+		if(intrpt_code != 4'b0001) irq = 1'b1;
+		else 					   irq = 1'b0;
+	end
 
 	assign rxrdy = dma_rx_event;
 	assign txrdy = dma_tx_event;
 
-	assign rxrdy_n = ~rxrdy;
-	assign txrdy_n = ~txrdy;
+	assign rxrdy_n 	= ~rxrdy;
+	assign txrdy_n 	= ~txrdy;
+	assign irq_n 	= ~irq;
 
 endmodule

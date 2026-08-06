@@ -86,8 +86,6 @@ module uart_16550 (
 	/*------------------------------------------------------------------------------
 	--  		Rx and Tx fifos connected with the fifo uart interface
 	------------------------------------------------------------------------------*/
-	assign push_with_err 	= uart_if.fifo_rx_push && !uart_if.fifo_rx_full && |uart_if.fifo_rx_in[10:8];
-	assign pop_with_err 	= uart_if.fifo_rx_pop && !uart_if.fifo_rx_empty && |uart_if.fifo_rx_out[10:8];
 
 	always_comb begin
 		case (fcr_val[7:6])
@@ -106,6 +104,20 @@ module uart_16550 (
 	/*------------------------------------------------------------------------------
 	--  				Detecting an error in rx fifo
 	------------------------------------------------------------------------------*/
+	
+	`ifdef UART_GENERATE_BI
+		// grab it from the top of the fifo
+		always_ff @(posedge clk or negedge resetn) begin : proc_
+			if(~resetn) begin
+				num_err_entries <= 0;
+			end else begin
+				if(uart_if.fifo_rx_in[9] || uart_if.fifo_rx_in[8]) num_err_entries <= 1;
+				else 											   num_err_entries <= '0;
+			end
+		end
+	`else 
+	assign push_with_err 	= uart_if.fifo_rx_push && !uart_if.fifo_rx_full && |uart_if.fifo_rx_in[10:8];
+	assign pop_with_err 	= uart_if.fifo_rx_pop && !uart_if.fifo_rx_empty && |uart_if.fifo_rx_out[10:8];
 	always_ff @(posedge clk or negedge resetn) begin
 		if(~resetn) begin
 			num_err_entries <= '0;
@@ -118,6 +130,7 @@ module uart_16550 (
 			endcase
 		end
 	end
+	`endif
 
 
 	// set the interface here, and the interface will then
