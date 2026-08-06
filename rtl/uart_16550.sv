@@ -42,7 +42,9 @@ module uart_16550 (
 	logic [3:0] data_bytes_rcvd;
 	logic [3:0] num_err_entries;
 
+	`ifndef UART_GENERATE_BI
 	logic push_with_err, pop_with_err;
+	`endif
 	// uart connection with the internal fifos
 	uart_interface uart_if(clk, resetn);
 
